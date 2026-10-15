@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>你能抓住重大历史机遇吗？</title>
+<link rel="stylesheet" href="styles/base.css">
+<link rel="stylesheet" href="styles/scenes.css">
+<link rel="stylesheet" href="styles/components.css">
+</head>
+<body>
+<div id="app">
+
+  <header id="status-bar">
+    <div class="stat"><span class="label">周</span><span id="stat-week">1</span></div>
+    <div class="stat"><span class="label">现金</span><span id="stat-cash">5000</span></div>
+    <div class="stat clickable" onclick="openLoanModal()"><span class="label">贷款 💰</span><span id="stat-loan">300000</span></div>
+    <div class="stat"><span class="label">净利</span><span id="stat-profit">0</span></div>
+  </header>
+
+  <main id="page-container">
+    <section id="page-home"   class="page active"></section>
+    <section id="page-family" class="page"></section>
+    <section id="page-menu"   class="page"></section>
+    <section id="page-shop"   class="page"></section>
+    <section id="page-ledger" class="page"></section>
+  </main>
+
+  <nav id="tab-bar">
+    <button class="tab active" data-page="home">首页</button>
+    <button class="tab" data-page="family">家庭</button>
+    <button class="tab" data-page="menu">菜单</button>
+    <button class="tab" data-page="shop">商店街</button>
+    <button class="tab" data-page="ledger">账本</button>
+  </nav>
+
+  <div id="modal">
+    <div id="modal-box">
+      <div id="modal-text"></div>
+      <button id="modal-btn" onclick="closeModal()">继续</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- 数据层 -->
+<script src="data/config.js"></script>
+<script src="data/characters.js"></script>
+<script src="data/scenes.js"></script>
+<script src="data/tasks.js"></script>
+<script src="data/recipes.js"></script>
+<script src="data/shops.js"></script>
+<script src="data/customers.js"></script>
+<script src="data/music.js"></script>
+<script src="data/opening.js"></script>
+<script src="data/loan.js"></script>
+<script src="data/bankrupt.js"></script>
+<script src="data/success.js"></script>
+
+<!-- 剧情层 -->
+<script src="story/story.js"></script>
+
+<!-- 核心层 -->
+<script src="core/utils.js"></script>
+<script src="core/state.js"></script>
+<script src="core/energy.js"></script>
+<script src="core/audio.js"></script>
+
+<!-- 逻辑层 -->
+<script src="systems/position.js"></script>
+<script src="systems/recipe.js"></script>
+<script src="systems/business.js"></script>
+<script src="systems/character.js"></script>
+<script src="systems/customer.js"></script>
+<script src="systems/learn.js"></script>
+<script src="systems/cutscene.js"></script>
+<script src="systems/loan.js"></script>
+<script src="systems/settlement.js"></script>
+
+<!-- 界面层 -->
+<script src="ui/modal.js"></script>
+<script src="ui/nav.js"></script>
+<script src="ui/home.js"></script>
+<script src="ui/family.js"></script>
+<script src="ui/menu.js"></script>
+<script src="ui/shop.js"></script>
+<script src="ui/ledger.js"></script>
+
+<!-- 入口 -->
+<script src="main.js"></script>
+</body>
+</html>

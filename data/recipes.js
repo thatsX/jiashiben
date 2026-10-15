@@ -1,0 +1,17 @@
+const RECIPES = [
+  { id: 'rice',    name: '白米饭', category: '主食', cost: 1, price: 3,  appeal: 1, quality: 1 },
+  { id: 'miso',    name: '味噌汤', category: '汤',   cost: 2, price: 5,  appeal: 2, quality: 2 },
+  { id: 'congyou', name: '葱油饼', category: '小菜', cost: 3, price: 10, appeal: 5, quality: 3 },
+  { id: 'ramen',    name: '拉面',     category: '主食', cost: 5,  price: 18, appeal: 6,  quality: 3 },
+  { id: 'chashu',   name: '叉烧',     category: '小菜', cost: 6,  price: 20, appeal: 6,  quality: 4 },
+  { id: 'tonkotsu', name: '豚骨拉面', category: '主食', cost: 8,  price: 28, appeal: 9,  quality: 5 },
+  { id: 'curry',      name: '咖喱饭',   category: '主食', cost: 8,  price: 25, appeal: 7,  quality: 3 },
+  { id: 'friedCkn',   name: '炸鸡',     category: '小菜', cost: 6,  price: 20, appeal: 6,  quality: 4 },
+  { id: 'currySet',   name: '咖喱套餐', category: '主食', cost: 12, price: 40, appeal: 12, quality: 5 },
+  { id: 'pudding', name: '布丁',   category: '甜点', cost: 4,  price: 15, appeal: 5,  quality: 4 },
+  { id: 'cake',    name: '蛋糕',   category: '甜点', cost: 6,  price: 22, appeal: 7,  quality: 4 },
+  { id: 'parfait', name: '芭菲',   category: '甜点', cost: 10, price: 35, appeal: 10, quality: 5 },
+  { id: 'egg',        name: '煎蛋',     category: '小菜', cost: 2, price: 6,  appeal: 3, quality: 2 },
+  { id: 'salad',      name: '沙拉',     category: '小菜', cost: 4, price: 12, appeal: 5, quality: 3 },
+  { id: 'vegPlatter', name: '蔬菜拼盘', category: '小菜', cost: 6, price: 18, appeal: 7, quality: 4 },
+];

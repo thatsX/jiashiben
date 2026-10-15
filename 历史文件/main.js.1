@@ -1,0 +1,1636 @@
+/* ============================================================
+   main.js —— 游戏逻辑
+   ============================================================ */
+
+window.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => switchPage(tab.dataset.page));
+  });
+  try { init(); }
+  catch (e) {
+    console.error('初始化失败:', e);
+    alert('初始化出错：' + e.message);
+  }
+});
+
+let state = {
+  week: 1,
+  cash: CONFIG.startCash,
+  loan: CONFIG.startLoan,
+  totalProfit: 0,
+  reputation: 50,
+  bankruptCount: 0,
+  customers: [],
+  seenCustomers: [],
+  ledger: [],
+  menu: [],
+  learnedRecipes: [],
+  lastTraffic: 0,
+  lastProfit: 0,
+  purchaseWeeks: 0,
+  lastPurchaseMul: 0,
+};
+
+function createCharacterEntity(data) {
+  return {
+    id: data.id,
+    name: data.name,
+    traits: { ...data.traits },
+    skills: [...(data.skills || [])],
+    positionBonus: { ...data.positionBonus },
+    defaultState: { ...data.defaultState },
+    current: {
+      task: data.defaultState.task,
+      visual: data.defaultState.visual,
+      energy: data.traits.energyMax,
+      affinity: 0,
+      position: { x: 50, y: 70 },
+      moveTimer: 0,
+      workShop: null,
+      talkedThisWeek: false,
+    },
+  };
+}
+
+let characters = CHARACTERS.map(createCharacterEntity);
+
+// ============================================================
+//   岗位合并规则
+// ============================================================
+
+// 餐厅岗位（后厨/洗碗/前台）：增益幅度直接叠加
+// 例：×1.10 和 ×1.15 → 1 + 0.10 + 0.15 = 1.25
+function combineRestaurantBonus(mults) {
+  if (!mults || mults.length === 0) return 1;
+  let sum = 0;
+  mults.forEach(m => { sum += (m - 1); });
+  return Math.max(0, 1 + sum);
+}
+
+// 多人时精力消耗折扣
+function getPositionEnergyMultiplier(taskId) {
+  const inPosition = characters.filter(c => c.current.task === taskId);
+  if (inPosition.length < 2) return 1;
+
+  if (taskId === 'kitchen' || taskId === 'wash' || taskId === 'front') {
+    return 2 / 3;   // 餐厅岗位：消耗 2/3
+  }
+  if (taskId === 'buy') {
+    return 1 / 3;   // 采购：消耗 1/3
+  }
+  return 1;
+}
+
+// ============================================================
+//   位置
+// ============================================================
+function updateWorkPositions() {
+  const counter = { kitchen: 0, wash: 0, front: 0 };
+  characters.forEach(c => {
+    const spots = RESTAURANT_SPOTS[c.current.task];
+    if (spots) {
+      const idx = counter[c.current.task] % spots.length;
+      c.current.position = { x: spots[idx].x, y: spots[idx].y };
+      counter[c.current.task]++;
+    }
+  });
+}
+
+function assignHomeInitialPosition(c) {
+  c.current.position = {
+    x: HOME_BOUNDS.xMin + Math.random() * (HOME_BOUNDS.xMax - HOME_BOUNDS.xMin),
+    y: HOME_BOUNDS.yMin + Math.random() * (HOME_BOUNDS.yMax - HOME_BOUNDS.yMin),
+  };
+  c.current.moveTimer = 1500 + Math.random() * 2500;
+}
+
+// ============================================================
+//   菜谱
+// ============================================================
+function getAvailableRecipes() {
+  const set = new Set();
+  characters.forEach(c => {
+    if (c.current.task === 'kitchen') {
+      c.skills.forEach(id => set.add(id));
+    }
+  });
+  return Array.from(set);
+}
+
+function syncMenuWithKitchen() {
+  const avail = getAvailableRecipes();
+  state.menu = state.menu.filter(id => avail.indexOf(id) >= 0);
+}
+
+function getMenuCost() {
+  const sum = state.menu.reduce((s, id) => {
+    const r = RECIPES.find(x => x.id === id);
+    return s + (r ? r.cost : 0);
+  }, 0);
+  return sum * CONFIG.menuCostMultiplier;
+}
+
+// ============================================================
+//   通用组件
+// ============================================================
+function avatarHTML(id, folder, size) {
+  size = size || 48;
+  return `
+    <div class="avatar" style="width:${size}px;height:${size}px">
+      <img src="assets/${folder}/${id}.png"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+      <div class="avatar-fallback">${id}</div>
+    </div>
+  `;
+}
+
+function portraitHTML(id, name) {
+  return `
+    <div class="portrait">
+      <img src="assets/chars_full/${id}.png"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+      <div class="portrait-fallback">${name}</div>
+    </div>
+  `;
+}
+
+function spriteInnerHTML(c, showRestLabel) {
+  const energyPct = (c.current.energy / c.traits.energyMax) * 100;
+  const restLabel = showRestLabel && c.current.task === 'rest'
+    ? '<div class="sprite-rest">休息中</div>' : '';
+  const tired = c.current.energy < 20 ? 'tired' : '';
+  return {
+    className: `sprite ${tired}`,
+    html: `
+      <img src="assets/sprites/${c.id}.png"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+      <div class="sprite-fallback">
+        <div class="fb-head"></div>
+        <div class="fb-body"></div>
+      </div>
+      ${restLabel}
+      <div class="sprite-label">${c.name}</div>
+      <div class="sprite-energy">
+        <div class="sprite-energy-fill" style="width:${energyPct}%"></div>
+      </div>
+    `,
+  };
+}
+
+// ============================================================
+//   弹窗
+// ============================================================
+function showModal(html) {
+  document.getElementById('modal-text').innerHTML = html;
+  document.getElementById('modal').classList.add('show');
+
+  const btn = document.getElementById('modal-btn');
+  btn.style.display = 'block';
+  btn.textContent = '继续';
+  btn.onclick = closeModal;
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+}
+
+function playScript(script) {
+  return script.map(line => {
+    if (line.who) return '<p><span class="speaker">' + line.who + '：</span>' + line.say + '</p>';
+    return '<p style="color:#666">' + line.text + '</p>';
+  }).join('');
+}
+
+// ============================================================
+//   页面切换
+// ============================================================
+function switchPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const page = document.getElementById('page-' + name);
+  const tab = document.querySelector('.tab[data-page="' + name + '"]');
+  if (page) page.classList.add('active');
+  if (tab) tab.classList.add('active');
+
+  const container = document.getElementById('page-container');
+  if (container) {
+    if (name === 'home' || name === 'shop') container.classList.add('no-padding');
+    else container.classList.remove('no-padding');
+  }
+
+  renderPage(name);
+}
+
+function renderPage(name) {
+  const fn = {
+    home: renderHome,
+    family: renderFamily,
+    menu: renderMenu,
+    shop: renderShop,
+    ledger: renderLedger,
+  }[name];
+  if (fn) fn();
+}
+
+function renderStatus() {
+  document.getElementById('stat-week').textContent = state.week;
+  document.getElementById('stat-cash').textContent = Math.round(state.cash);
+  document.getElementById('stat-loan').textContent = Math.round(state.loan);
+  document.getElementById('stat-profit').textContent = Math.round(state.totalProfit);
+}
+
+// ============================================================
+//   首页：餐馆
+// ============================================================
+function renderHome() {
+  const el = document.getElementById('page-home');
+
+  const hasFront = characters.some(c => c.current.task === 'front');
+  const hasKitchen = characters.some(c => c.current.task === 'kitchen');
+  const hasWash = characters.some(c => c.current.task === 'wash');
+  const canOperate = hasFront && hasKitchen && hasWash;
+
+  const missing = [];
+  if (!hasKitchen) missing.push('后厨');
+  if (!hasWash) missing.push('洗碗');
+  if (!hasFront) missing.push('前台');
+
+  const menuBtnText = state.menu.length > 0
+    ? `菜单 (${state.menu.length}/${CONFIG.menuMax})`
+    : '菜单';
+
+  const tablesHTML = TABLES.map(t =>
+    `<div class="table" style="left:${t.x}%; top:${t.y}%"></div>`
+  ).join('');
+
+  const chairsHTML = CHAIRS.map(c =>
+    `<div class="chair" data-chair-id="${c.id}" style="left:${c.x}%; top:${c.y}%"></div>`
+  ).join('');
+
+  let purchaseText, purchaseClass;
+  if (state.purchaseWeeks >= CONFIG.purchaseGraceWeeks) {
+    purchaseText = '已断采！+100%';
+    purchaseClass = 'danger';
+  } else if (state.purchaseWeeks === 0) {
+    purchaseText = '正常（+' + Math.round(state.lastPurchaseMul * 100) + '%）';
+    purchaseClass = '';
+  } else {
+    const remain = CONFIG.purchaseGraceWeeks - state.purchaseWeeks;
+    purchaseText = remain + ' 周内需采购';
+    purchaseClass = remain <= 1 ? 'warn' : '';
+  }
+
+  const rep = state.reputation;
+  let repDesc = '普通小店';
+  if (rep >= 80) repDesc = '座无虚席';
+  else if (rep >= 60) repDesc = '小有名气';
+  else if (rep < 20) repDesc = '快倒闭了';
+
+  let previewHTML = '';
+  if (canOperate && state.menu.length > 0) {
+    const preview = calculateBusiness();
+    previewHTML = `
+      <div class="row"><span class="label">预计客流</span><span class="value">${Math.round(preview.traffic)}</span></div>
+      <div class="row"><span class="label">预计净利</span><span class="value">${preview.profit >= 0 ? '+' : ''}${Math.round(preview.profit)}</span></div>
+    `;
+  }
+
+  el.innerHTML = `
+    <div id="scene-restaurant">
+      <div class="scene-status-panel">
+        <div class="row"><span class="label">信誉</span><span class="value">${rep.toFixed(1)} · ${repDesc}</span></div>
+        <div class="row"><span class="label">上周客流</span><span class="value">${state.lastTraffic}</span></div>
+        <div class="row"><span class="label">上周净利</span><span class="value">${state.lastProfit >= 0 ? '+' : ''}${state.lastProfit}</span></div>
+        <div class="row ${purchaseClass}"><span class="label">采购</span><span class="value">${purchaseText}</span></div>
+        ${previewHTML}
+      </div>
+
+      <button class="scene-menu-btn" onclick="switchPage('menu')">
+        📋 ${menuBtnText}
+      </button>
+
+      <div class="scene-back-zone"></div>
+      <div class="scene-divider"></div>
+      <div class="layer-tables">${tablesHTML}</div>
+      <div class="layer-chairs">${chairsHTML}</div>
+      <div class="layer-chars" id="layer-chars"></div>
+      <div class="layer-customers" id="layer-customers"></div>
+      ${!canOperate ? `<div class="scene-empty">还缺：${missing.join(' / ')}<br>去「家庭」页排班吧</div>` : ''}
+    </div>
+    <div class="home-bottom-bar">
+      <button class="settle-btn"
+              ${!canOperate ? 'disabled' : ''}
+              onclick="settle()">
+        ${canOperate ? '营业结算' : '无法营业'}
+      </button>
+    </div>
+  `;
+
+  renderWorkCharsDOM();
+  updateCustomersDOM();
+}
+
+function renderWorkCharsDOM() {
+  const el = document.getElementById('layer-chars');
+  if (!el) return;
+
+  const workChars = characters.filter(c =>
+    c.current.task === 'kitchen' ||
+    c.current.task === 'wash' ||
+    c.current.task === 'front'
+  );
+
+  el.innerHTML = workChars.map(c => {
+    const info = spriteInnerHTML(c, false);
+    return `
+      <div class="${info.className}"
+           data-char-id="${c.id}"
+           style="left:${c.current.position.x}%; top:${c.current.position.y}%;"
+           onclick="showCharStatus('${c.id}')">
+        ${info.html}
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================================
+//   客人
+// ============================================================
+function findAvailableChair() {
+  const occupied = new Set(
+    state.customers.filter(c => c.chairId).map(c => c.chairId)
+  );
+  const free = CHAIRS.filter(ch => !occupied.has(ch.id));
+  if (free.length === 0) return null;
+  return free[Math.floor(Math.random() * free.length)];
+}
+
+function createCustomerFromTemplate(template, isSpecial) {
+  const uid = 'c' + Date.now() + Math.random().toString(36).slice(2, 7);
+  return {
+    uid,
+    id: template.id,
+    name: template.name,
+    type: template.type,
+    isSpecial: !!isSpecial,
+    phase: 'entering',
+    chairId: null,
+    position: { x: CUSTOMER_ENTRY.x, y: CUSTOMER_ENTRY.y },
+    timer: 300,
+  };
+}
+
+function spawnNormalCustomer() {
+  const pool = CUSTOMERS.filter(c => c.type === 'normal');
+  const tpl = pool[Math.floor(Math.random() * pool.length)];
+  state.customers.push(createCustomerFromTemplate(tpl, false));
+}
+
+function tickCustomers(dt) {
+  state.customers.forEach(c => {
+    c.timer -= dt;
+    if (c.timer > 0) return;
+
+    if (c.phase === 'entering') {
+      const chair = findAvailableChair();
+      if (!chair) { c.timer = 1000; return; }
+      c.chairId = chair.id;
+      c.position = { x: chair.x, y: chair.y };
+      c.phase = 'goingToChair';
+      c.timer = 3200;
+
+    } else if (c.phase === 'goingToChair') {
+      c.phase = 'seated';
+      c.timer = c.isSpecial ? Infinity : (8000 + Math.random() * 8000);
+
+    } else if (c.phase === 'seated') {
+      c.chairId = null;
+      c.position = { x: CUSTOMER_EXIT.x, y: CUSTOMER_EXIT.y };
+      c.phase = 'leaving';
+      c.timer = 3500;
+
+    } else if (c.phase === 'leaving') {
+      c.phase = 'gone';
+    }
+  });
+
+  state.customers = state.customers.filter(c => c.phase !== 'gone');
+
+  const normalCount = state.customers.filter(c => !c.isSpecial).length;
+  if (normalCount < 3 && state.customers.length < CHAIRS.length) {
+    spawnNormalCustomer();
+  }
+}
+
+function updateCustomersDOM() {
+  const el = document.getElementById('layer-customers');
+  if (!el) return;
+
+  Array.from(el.children).forEach(child => {
+    if (!state.customers.find(c => c.uid === child.dataset.custId)) {
+      child.remove();
+    }
+  });
+
+  state.customers.forEach(c => {
+    let node = el.querySelector('[data-cust-id="' + c.uid + '"]');
+
+    if (!node) {
+      node = document.createElement('div');
+      node.className = 'sprite customer-sprite';
+      node.dataset.custId = c.uid;
+      node.style.transition = 'none';
+      node.style.left = c.position.x + '%';
+      node.style.top = c.position.y + '%';
+      node.innerHTML = `
+        <img src="assets/customers/${c.id}.png"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+        <div class="sprite-fallback">
+          <div class="fb-head"></div>
+          <div class="fb-body"></div>
+        </div>
+        <div class="sprite-label">${c.name}</div>
+      `;
+      node.onclick = () => talkToCustomerByUid(c.uid);
+      el.appendChild(node);
+      void node.offsetWidth;
+      node.style.transition = '';
+    } else {
+      node.style.left = c.position.x + '%';
+      node.style.top = c.position.y + '%';
+    }
+  });
+}
+
+function talkToCustomerByUid(uid) {
+  const c = state.customers.find(x => x.uid === uid);
+  if (!c) return;
+  const lines = STORY.customers[c.id];
+  if (!lines) return;
+
+  if (c.type === 'normal') {
+    const line = lines[Math.floor(Math.random() * lines.length)];
+    showModal('<p><span class="speaker">' + c.name + '：</span>' + line + '</p>');
+    return;
+  }
+
+  showModal(playScript(lines));
+
+  if (c.id === 'critic') state.reputation += 10;
+  if (c.id === 'zhulaoban') {
+    state.cash += 500;
+    renderStatus();
+  }
+}
+
+function generateSpecialCustomers() {
+  const repFactor = Math.max(0, Math.min(2, state.reputation / 50));
+
+  CUSTOMERS.filter(c => c.type === 'special').forEach(c => {
+    if (c.minWeek && state.week < c.minWeek) return;
+    if (c.once && state.seenCustomers.indexOf(c.id) >= 0) return;
+
+    let chance = (typeof c.chance === 'number') ? c.chance : 1.0;
+    chance *= repFactor;
+
+    if (Math.random() > chance) return;
+
+    state.customers.push(createCustomerFromTemplate(c, true));
+    state.seenCustomers.push(c.id);
+  });
+}
+
+// ============================================================
+//   角色状态弹窗 + 对话
+// ============================================================
+function showCharStatus(charId) {
+  const c = characters.find(x => x.id === charId);
+  if (!c) return;
+
+  const task = TASKS.find(t => t.id === c.current.task);
+  let taskName;
+  if (c.current.task === 'work') {
+    const shop = SHOPS.find(s => s.id === c.current.workShop);
+    taskName = shop ? '打工（' + shop.name + '）' : '打工';
+  } else {
+    taskName = task ? task.name : '无';
+  }
+
+  const zone = TASK_ZONE[c.current.task];
+  const zoneText = { restaurant: '餐馆', home: '家中', outside: '外出' }[zone] || '未知';
+
+  const skillsText = c.skills.length > 0
+    ? c.skills.map(id => {
+        const r = RECIPES.find(x => x.id === id);
+        return r ? r.name : id;
+      }).join('、')
+    : '（不会做菜）';
+
+  const canTalk = !c.current.talkedThisWeek;
+
+  const pb = c.positionBonus;
+  const bonusHTML = `
+    <div class="ledger-row"><span>后厨加成</span><span>×${pb.kitchen.toFixed(2)}</span></div>
+    <div class="ledger-row"><span>洗碗加成</span><span>×${pb.wash.toFixed(2)}</span></div>
+    <div class="ledger-row"><span>前台加成</span><span>×${pb.front.toFixed(2)}</span></div>
+    <div class="ledger-row"><span>采购上涨</span><span>+${(pb.buy * 100).toFixed(0)}%</span></div>
+  `;
+
+  showModal(`
+    <div style="text-align:center;margin-bottom:12px">
+      ${avatarHTML(c.id, 'chars', 64)}
+      <h3 style="margin-top:6px">${c.name}</h3>
+      <p style="color:#888;font-size:12px">好感 ${c.current.affinity}</p>
+    </div>
+    <div class="ledger-row"><span>当前任务</span><span>${taskName}</span></div>
+    <div class="ledger-row"><span>所在位置</span><span>${zoneText}</span></div>
+    <div class="ledger-row"><span>精力</span><span>${Math.round(c.current.energy)} / ${c.traits.energyMax}</span></div>
+    <div class="ledger-row" style="align-items:flex-start">
+      <span>会做的菜</span>
+      <span style="text-align:right;max-width:60%">${skillsText}</span>
+    </div>
+    <h4 style="margin-top:10px;font-size:13px">岗位加成</h4>
+    ${bonusHTML}
+
+    <button class="talk-btn"
+            ${!canTalk ? 'disabled' : ''}
+            onclick="talkToChar('${c.id}')">
+      ${canTalk ? '💬 聊聊天（+5 好感）' : '本周已聊过'}
+    </button>
+  `);
+  document.getElementById('modal-btn').textContent = '关闭';
+}
+
+function talkToChar(charId) {
+  const c = characters.find(x => x.id === charId);
+  if (!c) return;
+  if (c.current.talkedThisWeek) {
+    alert(c.name + ' 本周已经聊过了。');
+    return;
+  }
+
+  c.current.talkedThisWeek = true;
+  c.current.affinity += 5;
+
+  const lines = STORY.talk[c.name] || ['……'];
+  const line = lines[Math.floor(Math.random() * lines.length)];
+
+  showModal(`
+    <div style="text-align:center;margin-bottom:12px">
+      ${avatarHTML(c.id, 'chars', 64)}
+      <h3 style="margin-top:6px">${c.name}</h3>
+    </div>
+    <div class="talk-bubble">
+      <p>“${line}”</p>
+    </div>
+    <p style="text-align:center;color:#4caf50;font-size:13px;margin-top:12px;font-weight:bold">
+      好感 +5（当前 ${c.current.affinity}）
+    </p>
+  `);
+  document.getElementById('modal-btn').textContent = '关闭';
+
+  const active = document.querySelector('.page.active');
+  if (active && active.id === 'page-family') {
+    renderFamily();
+  }
+}
+
+// ============================================================
+//   家庭页
+// ============================================================
+function renderFamily() {
+  const el = document.getElementById('page-family');
+
+  const homeChars = characters.filter(c => TASK_ZONE[c.current.task] === 'home');
+  homeChars.forEach(c => {
+    if (!c.current.moveTimer || c.current.moveTimer <= 0) {
+      assignHomeInitialPosition(c);
+    }
+  });
+
+  const statusListHTML = characters.map(c => renderStatusCard(c)).join('');
+
+  el.innerHTML = `
+    <button style="width:100%;margin-bottom:12px" onclick="openSchedule()">
+      📋 排班系统
+    </button>
+    <div id="scene-home">
+      <div class="scene-floor"></div>
+      <div id="scene-home-chars"></div>
+      ${homeChars.length === 0 ? '<div class="scene-empty">大家都在外面忙……</div>' : ''}
+    </div>
+    <h3 style="margin-top:16px">家庭成员状态</h3>
+    <div class="family-status-list">
+      ${statusListHTML}
+    </div>
+  `;
+
+  updateHomeCharsDOM();
+}
+
+function renderStatusCard(c) {
+  const isTired = c.current.energy < 20;
+  const energyPct = (c.current.energy / c.traits.energyMax) * 100;
+
+  const skillsText = c.skills.length > 0
+    ? c.skills.map(id => {
+        const r = RECIPES.find(x => x.id === id);
+        return r ? r.name : id;
+      }).join('、')
+    : '（暂时不会做菜）';
+
+  const talentText = (typeof TALENT !== 'undefined' && TALENT[c.id]) ? TALENT[c.id] : '—';
+
+  let workTag = '';
+  if (c.current.task === 'work') {
+    const shop = SHOPS.find(s => s.id === c.current.workShop);
+    workTag = `<span class="status-tag working">打工中${shop ? ' · ' + shop.name : ''}</span>`;
+  } else if (c.current.task === 'rest') {
+    workTag = `<span class="status-tag resting">休息中</span>`;
+  }
+
+  const talkTag = c.current.talkedThisWeek
+    ? '<span class="status-tag talked">已聊过</span>'
+    : '';
+
+  return `
+    <div class="status-card ${isTired ? 'tired' : ''}"
+         onclick="showCharStatus('${c.id}')">
+      <div class="status-avatar">
+        ${avatarHTML(c.id, 'chars', 52)}
+      </div>
+      <div class="status-info">
+        <div class="status-name">
+          <b>${c.name}</b>
+          ${workTag}
+          ${talkTag}
+        </div>
+
+        <div class="status-energy">
+          <div class="status-energy-bar">
+            <div class="status-energy-fill" style="width:${energyPct}%"></div>
+          </div>
+          <span class="status-energy-text">${Math.round(c.current.energy)}/${c.traits.energyMax}</span>
+        </div>
+
+        <div class="status-line"><b>会做：</b>${skillsText}</div>
+        <div class="status-line"><b>擅长：</b>${talentText}</div>
+      </div>
+
+      ${isTired ? '<div class="status-overlay">已壮烈躺平</div>' : ''}
+    </div>
+  `;
+}
+
+function updateHomeCharsDOM() {
+  const el = document.getElementById('scene-home-chars');
+  if (!el) return;
+
+  const homeChars = characters.filter(c => TASK_ZONE[c.current.task] === 'home');
+
+  Array.from(el.children).forEach(child => {
+    if (!homeChars.find(c => c.id === child.dataset.charId)) {
+      child.remove();
+    }
+  });
+
+  homeChars.forEach(c => {
+    let node = el.querySelector('[data-char-id="' + c.id + '"]');
+    if (!node) {
+      const info = spriteInnerHTML(c, true);
+      node = document.createElement('div');
+      node.className = info.className;
+      node.dataset.charId = c.id;
+      node.style.left = c.current.position.x + '%';
+      node.style.top = c.current.position.y + '%';
+      node.innerHTML = info.html;
+      node.onclick = () => showCharStatus(c.id);
+      el.appendChild(node);
+    } else {
+      node.style.left = c.current.position.x + '%';
+      node.style.top = c.current.position.y + '%';
+    }
+  });
+}
+
+function tickHomeChars(dt) {
+  const homeChars = characters.filter(c => TASK_ZONE[c.current.task] === 'home');
+  homeChars.forEach(c => {
+    c.current.moveTimer -= dt;
+    if (c.current.moveTimer <= 0) {
+      c.current.position = {
+        x: HOME_BOUNDS.xMin + Math.random() * (HOME_BOUNDS.xMax - HOME_BOUNDS.xMin),
+        y: HOME_BOUNDS.yMin + Math.random() * (HOME_BOUNDS.yMax - HOME_BOUNDS.yMin),
+      };
+      c.current.moveTimer = 2000 + Math.random() * 3000;
+    }
+  });
+}
+
+function openSchedule() {
+  const rows = characters.map(c => {
+    const isWorking = c.current.task === 'work';
+    const shop = isWorking ? SHOPS.find(s => s.id === c.current.workShop) : null;
+    const energyPct = (c.current.energy / c.traits.energyMax) * 100;
+    const isTired = c.current.energy < 20;
+    const criticalClass = isTired ? 'critical' : '';
+
+    let controlHTML;
+    if (isWorking) {
+      controlHTML = `
+        <div class="work-locked">
+          <div style="font-weight:bold;color:#4caf50">打工中</div>
+          <div style="font-size:11px;color:#666">${shop ? shop.name : ''}</div>
+        </div>
+      `;
+    } else {
+      const taskOptions = TASKS.map(t => {
+        const disabled = (t.id === 'front' || t.id === 'buy') && !c.traits.canExpose;
+        const selected = c.current.task === t.id;
+        return '<option value="' + t.id + '" ' +
+               (selected ? 'selected' : '') + ' ' +
+               (disabled ? 'disabled' : '') + '>' + t.name + '</option>';
+      }).join('');
+      controlHTML = `<select onchange="changeTask('${c.id}', this.value)">${taskOptions}</select>`;
+    }
+
+    return `
+      <div class="schedule-row">
+        <div class="schedule-avatar">${avatarHTML(c.id, 'chars', 40)}</div>
+        <div class="schedule-info">
+          <div><b>${c.name}</b></div>
+          <div class="energy-bar">
+            <div class="energy-fill ${criticalClass}" style="width:${energyPct}%"></div>
+          </div>
+          <div style="font-size:11px;color:#888">精力 ${Math.round(c.current.energy)}/${c.traits.energyMax}</div>
+        </div>
+        ${controlHTML}
+      </div>
+    `;
+  }).join('');
+
+  showModal(`
+    <h3 style="margin-bottom:12px">家庭成员排班</h3>
+    ${rows}
+    <p style="font-size:12px;color:#888;margin-top:12px">
+      提示：餐馆需要同时有 后厨 / 洗碗 / 前台 才能营业。<br>
+      打工请去「商店街」页。要取消打工请到对应店铺点击角色。
+    </p>
+  `);
+  document.getElementById('modal-btn').textContent = '关闭';
+}
+
+function changeTask(charId, taskId) {
+  const c = characters.find(x => x.id === charId);
+  if (!c) return;
+  if (c.current.task === 'work') return;
+
+  if (c.current.energy < 20 && taskId !== 'rest') {
+    alert(c.name + ' 精力太低，本周只能休息。');
+    openSchedule();
+    return;
+  }
+
+  const oldTask = c.current.task;
+  c.current.task = taskId;
+  c.current.workShop = null;
+
+  updateWorkPositions();
+  if (TASK_ZONE[taskId] === 'home' && TASK_ZONE[oldTask] !== 'home') {
+    assignHomeInitialPosition(c);
+  }
+  syncMenuWithKitchen();
+
+  openSchedule();
+  renderPage('family');
+}
+
+// ============================================================
+//   菜单页
+// ============================================================
+function renderMenu() {
+  const el = document.getElementById('page-menu');
+
+  const avail = getAvailableRecipes();
+  const menuSet = new Set(state.menu);
+
+  const kitchenChars = characters.filter(c => c.current.task === 'kitchen');
+  const kitchenText = kitchenChars.length > 0
+    ? kitchenChars.map(c => c.name).join('、')
+    : '（后厨没人）';
+
+  const menuCost = getMenuCost();
+  const affordable = menuCost <= state.cash;
+  const costCls = affordable ? '' : 'color:#d32f2f;font-weight:bold';
+
+  const listHTML = RECIPES.map(r => {
+    const canMake = avail.indexOf(r.id) >= 0;
+    const inMenu = menuSet.has(r.id);
+    const cls = canMake ? (inMenu ? 'recipe-item selected' : 'recipe-item') : 'recipe-item disabled';
+
+    return `
+      <div class="${cls}" onclick="${canMake ? `toggleMenu('${r.id}')` : ''}">
+        <div class="recipe-info">
+          <div><b>${r.name}</b> <span style="color:#888;font-size:12px">${r.category}</span></div>
+          <div style="font-size:12px;color:#666">
+            成本 ${r.cost} · 售价 ${r.price} · 吸引力 ${r.appeal}
+          </div>
+          ${!canMake ? '<div style="font-size:11px;color:#c62828">后厨没人会做</div>' : ''}
+        </div>
+        <div class="recipe-check">${inMenu ? '✔' : ''}</div>
+      </div>
+    `;
+  }).join('');
+
+  el.innerHTML = `
+    <h3>本周菜单</h3>
+    <div class="card" style="cursor:default">
+      <div class="ledger-row"><span>后厨</span><span>${kitchenText}</span></div>
+      <div class="ledger-row"><span>已选</span><span>${state.menu.length} / ${CONFIG.menuMax}</span></div>
+      <div class="ledger-row"><span>菜单成本</span><span style="${costCls}">${menuCost} / 现金 ${Math.round(state.cash)}</span></div>
+    </div>
+
+    <h3 style="margin-top:12px">可选菜谱</h3>
+    ${listHTML}
+  `;
+}
+
+function toggleMenu(recipeId) {
+  const idx = state.menu.indexOf(recipeId);
+
+  if (idx >= 0) {
+    state.menu.splice(idx, 1);
+    renderMenu();
+    return;
+  }
+
+  if (state.menu.length >= CONFIG.menuMax) {
+    alert('菜单最多 ' + CONFIG.menuMax + ' 道菜。');
+    return;
+  }
+
+  const tempMenu = state.menu.concat(recipeId);
+  const tempCost = tempMenu.reduce((s, id) => {
+    const r = RECIPES.find(x => x.id === id);
+    return s + (r ? r.cost : 0);
+  }, 0) * CONFIG.menuCostMultiplier;
+
+  if (tempCost > state.cash) {
+    alert(
+      '现金不足！\n' +
+      '这个菜单需要 ' + tempCost + ' 现金（成本×' + CONFIG.menuCostMultiplier + '）\n' +
+      '当前只有 ' + Math.round(state.cash) + '。'
+    );
+    return;
+  }
+
+  state.menu.push(recipeId);
+  renderMenu();
+}
+
+// ============================================================
+//   商店街
+// ============================================================
+function renderShop() {
+  const el = document.getElementById('page-shop');
+
+  const buildingsHTML = SHOPS.map(s => `
+    <div class="shop-building"
+         style="left:${s.x}%; top:${s.y}%"
+         onclick="openShop('${s.id}')">
+      <div class="shop-name">${s.name}</div>
+      <div class="shop-count">打工 ${s.workCount} 次</div>
+    </div>
+  `).join('');
+
+  el.innerHTML = `
+    <div id="scene-shop">
+      <div class="shop-road shop-road-h"></div>
+      <div class="shop-road shop-road-v"></div>
+      ${buildingsHTML}
+    </div>
+  `;
+}
+
+function openShop(shopId) {
+  const shop = SHOPS.find(s => s.id === shopId);
+  if (!shop) return;
+
+  const workingHere = characters.filter(c => c.current.task === 'work' && c.current.workShop === shopId);
+
+  const candidates = characters.filter(c =>
+    c.current.task === 'rest' &&
+    c.traits.canWork &&
+    c.current.energy >= 20 &&
+    !c.current.workShop
+  );
+
+  const recipesHTML = shop.recipes.map((rid, i) => {
+    const r = RECIPES.find(x => x.id === rid);
+    const need = shop.unlockAt[i];
+    const unlocked = shop.workCount >= need;
+    const cls = unlocked ? 'recipe-unlock unlocked' : 'recipe-unlock';
+    return `
+      <div class="${cls}">
+        <span>${r ? r.name : rid}</span>
+        <span>${unlocked ? '已解锁' : `打工 ${need} 次（${shop.workCount}/${need}）`}</span>
+      </div>
+    `;
+  }).join('');
+
+  const workerHTML = candidates.length > 0
+    ? candidates.map(c => {
+        const isNingetsu = c.traits.needEscort;
+        const blockByEscort = isNingetsu && workingHere.length === 0;
+        const cls = blockByEscort ? 'worker-option disabled' : 'worker-option';
+        const click = blockByEscort ? '' : `onclick="toggleWorker('${shopId}','${c.id}')"`;
+        const hint = blockByEscort ? '<span style="color:#c62828;font-size:11px">需要有人陪</span>' : '';
+
+        return `
+          <div class="${cls}" ${click}>
+            ${avatarHTML(c.id, 'chars', 36)}
+            <div class="worker-info">
+              <div><b>${c.name}</b> ${hint}</div>
+              <div style="font-size:11px;color:#666">
+                精力 ${Math.round(c.current.energy)}/${c.traits.energyMax}
+                · 倍率 ${c.traits.workMultiplier.toFixed(1)}x
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')
+    : '<p style="color:#888;font-size:12px">没有可以打工的角色（需要处于休息状态、精力≥20）。</p>';
+
+  const selectedHTML = workingHere.length > 0
+    ? workingHere.map(c => `
+        <div class="worker-option selected" onclick="toggleWorker('${shopId}','${c.id}')">
+          ${avatarHTML(c.id, 'chars', 36)}
+          <div class="worker-info">
+            <div><b>${c.name}</b> <span style="color:#4caf50;font-size:11px">✔ 打工中</span></div>
+            <div style="font-size:11px;color:#666">
+              精力 ${Math.round(c.current.energy)}/${c.traits.energyMax}
+              · 倍率 ${c.traits.workMultiplier.toFixed(1)}x
+            </div>
+          </div>
+        </div>
+      `).join('')
+    : '';
+
+  const income = workingHere.reduce((s, c) => s + shop.baseWage * c.traits.workMultiplier, 0);
+
+  showModal(`
+    <h3>${shop.name}</h3>
+    <div class="shop-info">
+      <div class="ledger-row"><span>基础工资</span><span>${shop.baseWage}</span></div>
+      <div class="ledger-row"><span>精力消耗</span><span>${shop.energyCost}</span></div>
+      <div class="ledger-row"><span>累计打工</span><span>${shop.workCount} 次</span></div>
+    </div>
+
+    <h4 style="margin-top:12px">可获得菜谱</h4>
+    ${recipesHTML}
+
+    <h4 style="margin-top:12px">选择打工者</h4>
+    ${selectedHTML}
+    ${workerHTML}
+
+    <div class="income-preview">
+      预计收入：<b>${Math.round(income)}</b>
+    </div>
+  `);
+  document.getElementById('modal-btn').textContent = '关闭';
+}
+
+function toggleWorker(shopId, charId) {
+  const c = characters.find(x => x.id === charId);
+  if (!c) return;
+
+  const isWorkingHere = c.current.task === 'work' && c.current.workShop === shopId;
+
+  if (isWorkingHere) {
+    c.current.task = 'rest';
+    c.current.workShop = null;
+    assignHomeInitialPosition(c);
+
+    const workingHere = characters.filter(x => x.current.task === 'work' && x.current.workShop === shopId);
+    const nonNingetsu = workingHere.filter(x => !x.traits.needEscort);
+    if (nonNingetsu.length === 0) {
+      workingHere.forEach(x => {
+        if (x.traits.needEscort) {
+          x.current.task = 'rest';
+          x.current.workShop = null;
+          assignHomeInitialPosition(x);
+        }
+      });
+    }
+  } else {
+    if (c.traits.needEscort) {
+      const workingHere = characters.filter(x => x.current.task === 'work' && x.current.workShop === shopId);
+      if (workingHere.length === 0) return;
+    }
+    c.current.task = 'work';
+    c.current.workShop = shopId;
+    c.current.position = { x: -20, y: 60 };
+  }
+
+  openShop(shopId);
+}
+
+// ============================================================
+//   账本
+// ============================================================
+function renderLedger() {
+  const el = document.getElementById('page-ledger');
+
+  const summary = `
+    <div class="card" style="cursor:default">
+      <div class="ledger-row"><span>现金</span><span>${Math.round(state.cash)}</span></div>
+      <div class="ledger-row"><span>负债</span><span>${Math.round(state.loan)}</span></div>
+      <div class="ledger-row"><span>累计净利</span><span>${Math.round(state.totalProfit)}</span></div>
+      <div class="ledger-row"><span>破产次数</span><span>${state.bankruptCount}</span></div>
+    </div>
+  `;
+
+  const recordsHTML = state.ledger.length > 0
+    ? state.ledger.slice().reverse().map(r => `
+        <div class="week-record">
+          <div class="week-record-title">第 ${r.week} 周</div>
+          <div class="ledger-row"><span>营业额</span><span>${r.revenue}</span></div>
+          <div class="ledger-row"><span>食材成本</span><span>-${r.foodCost}</span></div>
+          <div class="ledger-row"><span>店铺固定</span><span>-${r.fixedCost}</span></div>
+          <div class="ledger-row"><span>家庭开销</span><span>-${r.familyCost}</span></div>
+          <div class="ledger-row"><span>打工收入</span><span>+${r.workIncome}</span></div>
+          <div class="ledger-row total">
+            <span>现金变化</span>
+            <span>${r.cashChange >= 0 ? '+' : ''}${r.cashChange}</span>
+          </div>
+          <div class="ledger-row" style="font-size:12px;color:#888">
+            <span>期末现金</span><span>${r.cashAfter}</span>
+          </div>
+        </div>
+      `).join('')
+    : '<p style="color:#888;font-size:13px">还没有经营记录。</p>';
+
+  el.innerHTML = `
+    <h3>账本</h3>
+    ${summary}
+    <button style="width:100%;margin-top:8px;background:#ff8a80" onclick="confirmReset()">
+      🔄 恢复默认状态重开
+    </button>
+    <h3 style="margin-top:16px">周记录</h3>
+    ${recordsHTML}
+  `;
+}
+
+function confirmReset() {
+  if (!confirm('确定要恢复默认状态重新开始吗？\n所有进度、账本记录都会清空。')) return;
+  resetGame();
+  switchPage('home');
+}
+
+// ============================================================
+//   营业结算
+// ============================================================
+function settle() {
+  const hasFront = characters.some(c => c.current.task === 'front');
+  const hasKitchen = characters.some(c => c.current.task === 'kitchen');
+  const hasWash = characters.some(c => c.current.task === 'wash');
+
+  if (!hasFront || !hasKitchen || !hasWash) {
+    alert('无法营业：需要同时有 后厨 / 洗碗 / 前台。');
+    return;
+  }
+  if (state.menu.length === 0) {
+    alert('菜单是空的，没法营业。去「菜单」页面选菜。');
+    return;
+  }
+
+  // ===== 采购追踪 =====
+  const buyers = characters.filter(c => c.current.task === 'buy');
+  if (buyers.length > 0) {
+    state.purchaseWeeks = 0;
+    // 取最小减益
+    const bestMul = Math.min.apply(null, buyers.map(c => c.positionBonus.buy));
+    state.lastPurchaseMul = bestMul;
+  } else {
+    state.purchaseWeeks++;
+  }
+
+  // ===== 宁月打工特殊事件 =====
+  let ningetsuExtraMoney = 0;
+  let ningetsuWantRecipe = false;
+  let ningetsuEventType = null;   // 'recipe' / 'money' / null
+
+  const ningetsu = characters.find(c => c.id === 'ningetsu');
+  if (ningetsu && ningetsu.current.task === 'work' && ningetsu.current.workShop) {
+    if (Math.random() < 0.5) {
+      if (Math.random() < 0.5) {
+        ningetsuWantRecipe = true;
+        ningetsuEventType = 'recipe';
+      } else {
+        const shop = SHOPS.find(s => s.id === ningetsu.current.workShop);
+        if (shop) {
+          ningetsuExtraMoney = shop.baseWage * ningetsu.traits.workMultiplier;
+          ningetsuEventType = 'money';
+        }
+      }
+    }
+  }
+
+  // ===== 计算经营 =====
+  const r = calculateBusiness();
+  r.cashChange += ningetsuExtraMoney;
+  r.workIncome += ningetsuExtraMoney;
+
+  state.cash += r.cashChange;
+  state.totalProfit += r.profit;
+  const settledWeek = state.week;
+  state.week++;
+
+  state.lastTraffic = Math.round(r.traffic);
+  state.lastProfit = Math.round(r.profit);
+
+  // 声誉变化
+  let repChange = (r.kitchenMul - 1.0) * CONFIG.repKitchenWeight - CONFIG.repDecay;
+  repChange = Math.round(repChange * 10) / 10;
+  state.reputation += repChange;
+  state.reputation = Math.max(0, Math.min(100, state.reputation));
+
+  // 重置对话
+  characters.forEach(c => { c.current.talkedThisWeek = false; });
+
+  // ===== 精力扣除 =====
+  characters.forEach(c => {
+    if (c.current.task === 'rest') {
+      c.current.energy = Math.min(c.traits.energyMax, c.current.energy + 30);
+    } else if (c.current.task === 'work') {
+      const shop = SHOPS.find(s => s.id === c.current.workShop);
+      const cost = shop ? shop.energyCost : 40;
+      c.current.energy = Math.max(0, c.current.energy - cost + c.traits.recovery * 0.5);
+    } else {
+      const task = TASKS.find(t => t.id === c.current.task);
+      if (task) {
+        const mult = getPositionEnergyMultiplier(c.current.task);
+        const cost = task.energyCost * mult;
+        c.current.energy = Math.max(0, c.current.energy - cost + c.traits.recovery * 0.5);
+      }
+    }
+  });
+
+  // ===== 店铺打工次数 + 新菜谱 =====
+  const shopsUsed = new Set();
+  characters.forEach(c => {
+    if (c.current.task === 'work' && c.current.workShop) shopsUsed.add(c.current.workShop);
+  });
+
+  const newRecipes = [];
+  shopsUsed.forEach(shopId => {
+    const shop = SHOPS.find(s => s.id === shopId);
+    if (!shop) return;
+    shop.workCount++;
+    shop.recipes.forEach((rid, i) => {
+      const need = shop.unlockAt[i];
+      if (shop.workCount >= need && state.learnedRecipes.indexOf(rid) < 0) {
+        state.learnedRecipes.push(rid);
+        newRecipes.push(rid);
+      }
+    });
+  });
+
+  // 宁月菜谱事件
+  if (ningetsuWantRecipe) {
+    const pool = RECIPES.filter(rec =>
+      state.learnedRecipes.indexOf(rec.id) < 0 &&
+      newRecipes.indexOf(rec.id) < 0
+    );
+    if (pool.length > 0) {
+      const picked = pool[Math.floor(Math.random() * pool.length)];
+      state.learnedRecipes.push(picked.id);
+      newRecipes.push(picked.id);
+    }
+  }
+
+  // ===== 写账本 =====
+  state.ledger.push({
+    week: settledWeek,
+    revenue: Math.round(r.revenue),
+    foodCost: Math.round(r.foodCost),
+    fixedCost: Math.round(r.fixedCost),
+    familyCost: Math.round(r.familyCost),
+    workIncome: Math.round(r.workIncome),
+    cashChange: Math.round(r.cashChange),
+    cashAfter: Math.round(state.cash),
+    profit: Math.round(r.profit),
+  });
+
+  // ===== 结算剧本 =====
+  let script;
+  if (r.profit > 20000) script = STORY.settlement.big;
+  else if (r.profit > 0) script = STORY.settlement.small;
+  else if (r.profit > -5000) script = STORY.settlement.slightLoss;
+  else script = STORY.settlement.bigLoss;
+
+  const tired = characters.find(c => c.current.energy < 20);
+  if (tired && STORY.tired[tired.id]) {
+    script = script.concat([{ text: '———' }], STORY.tired[tired.id]);
+  }
+
+  const settleData = {
+    week: settledWeek, r, script, repChange,
+    ningetsuEventType, ningetsuExtraMoney,
+  };
+
+  if (newRecipes.length > 0) {
+    startLearnFlow(newRecipes, settleData);
+  } else {
+    showSettlementDialogue(settleData);
+  }
+
+  renderStatus();
+}
+
+function showSettlementDialogue(settleData) {
+  const { week, r, script, repChange, ningetsuEventType, ningetsuExtraMoney } = settleData;
+  showModal(buildSettleHTML(week, r, script, repChange, ningetsuEventType, ningetsuExtraMoney));
+  document.getElementById('modal-btn').onclick = () => {
+    closeModal();
+    checkEnding();
+  };
+}
+
+// ============================================================
+//   学菜谱流程
+// ============================================================
+let learnQueue = [];
+let learnCurrentRecipe = null;
+let learnSelected = [];
+let pendingSettleData = null;
+
+function startLearnFlow(recipeIds, settleData) {
+  pendingSettleData = settleData;
+  learnQueue = recipeIds.slice();
+  nextLearnStep();
+}
+
+function nextLearnStep() {
+  if (learnQueue.length === 0) {
+    learnCurrentRecipe = null;
+    learnSelected = [];
+    const data = pendingSettleData;
+    pendingSettleData = null;
+    showSettlementDialogue(data);
+    return;
+  }
+  learnCurrentRecipe = learnQueue.shift();
+  learnSelected = [];
+  renderLearnModal();
+}
+
+function renderLearnModal() {
+  const recipe = RECIPES.find(r => r.id === learnCurrentRecipe);
+  const remaining = learnQueue.length;
+
+  const charsHTML = characters.map(c => {
+    const selected = learnSelected.indexOf(c.id) >= 0;
+    const knows = c.skills.indexOf(learnCurrentRecipe) >= 0;
+
+    let cls = 'worker-option';
+    let click = `onclick="toggleLearnSelect('${c.id}')"`;
+    let hint = '';
+
+    if (knows) {
+      cls += ' disabled';
+      click = '';
+      hint = '<span style="color:#888;font-size:11px">（已经会了）</span>';
+    } else if (selected) {
+      cls += ' selected';
+    }
+
+    return `
+      <div class="${cls}" ${click}>
+        ${avatarHTML(c.id, 'chars', 36)}
+        <div class="worker-info">
+          <div><b>${c.name}</b> ${hint}</div>
+          <div style="font-size:11px;color:#666">精力 ${Math.round(c.current.energy)}/${c.traits.energyMax}</div>
+        </div>
+        ${selected ? '<div style="color:#4caf50;font-weight:bold;font-size:18px">✔</div>' : ''}
+      </div>
+    `;
+  }).join('');
+
+  const confirmDisabled = learnSelected.length !== 2;
+
+  showModal(`
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:44px">🎉</div>
+      <h2 style="color:#d32f2f;margin-top:6px;font-size:20px">恭喜获得菜谱！</h2>
+      <h3 style="margin-top:8px;color:#333;font-size:18px">${recipe ? recipe.name : ''}</h3>
+      <p style="font-size:12px;color:#888;margin-top:6px">
+        ${recipe ? `${recipe.category} · 成本 ${recipe.cost} · 售价 ${recipe.price} · 吸引力 ${recipe.appeal}` : ''}
+      </p>
+      ${remaining > 0 ? `<p style="font-size:11px;color:#666;margin-top:8px">（还有 ${remaining} 道菜谱待学习）</p>` : ''}
+    </div>
+
+    <p style="font-size:13px;margin-bottom:10px;text-align:center">
+      选择 <b>2 人</b> 学会制作它（已选 ${learnSelected.length}/2）
+    </p>
+    ${charsHTML}
+
+    <button id="learn-confirm-btn"
+            style="width:100%;margin-top:12px"
+            ${confirmDisabled ? 'disabled' : ''}
+            onclick="confirmLearn()">
+      ${confirmDisabled ? '请选择 2 人' : '确认学习'}
+    </button>
+  `);
+
+  document.getElementById('modal-btn').style.display = 'none';
+}
+
+function toggleLearnSelect(charId) {
+  const c = characters.find(x => x.id === charId);
+  if (!c) return;
+  if (c.skills.indexOf(learnCurrentRecipe) >= 0) return;
+
+  const idx = learnSelected.indexOf(charId);
+  if (idx >= 0) {
+    learnSelected.splice(idx, 1);
+  } else {
+    if (learnSelected.length >= 2) return;
+    learnSelected.push(charId);
+  }
+  renderLearnModal();
+}
+
+function confirmLearn() {
+  if (learnSelected.length !== 2) return;
+  learnSelected.forEach(cid => {
+    const c = characters.find(x => x.id === cid);
+    if (c && c.skills.indexOf(learnCurrentRecipe) < 0) {
+      c.skills.push(learnCurrentRecipe);
+    }
+  });
+  nextLearnStep();
+}
+
+// ============================================================
+//   结算弹窗 HTML
+// ============================================================
+function buildSettleHTML(week, r, script, repChange, ningetsuEventType, ningetsuExtraMoney) {
+  let purchaseLine = '';
+  if (state.purchaseWeeks >= CONFIG.purchaseGraceWeeks) {
+    purchaseLine = `<div class="ledger-row" style="color:#d32f2f"><span>采购</span><span>断采！成本 &amp; 家庭开销 +100%</span></div>`;
+  } else if (state.purchaseWeeks === 0) {
+    const pct = Math.round(state.lastPurchaseMul * 100);
+    purchaseLine = `<div class="ledger-row" style="color:#4caf50"><span>采购</span><span>刚采购（+${pct}%）</span></div>`;
+  } else {
+    const remain = CONFIG.purchaseGraceWeeks - state.purchaseWeeks;
+    const pct = Math.round(state.lastPurchaseMul * 100);
+    purchaseLine = `<div class="ledger-row" style="color:#ff9800"><span>采购</span><span>剩 ${remain} 周（+${pct}%）</span></div>`;
+  }
+
+  const repChangeText = repChange >= 0 ? '+' + repChange : '' + repChange;
+  const repColor = repChange >= 0 ? '#4caf50' : '#d32f2f';
+
+  // 宁月特殊事件提示
+  let ningetsuLine = '';
+  if (ningetsuEventType === 'money') {
+    ningetsuLine = `<div class="ledger-row" style="color:#d32f2f"><span>宁月打工</span><span>意外收获！双倍工钱 +${Math.round(ningetsuExtraMoney)}</span></div>`;
+  } else if (ningetsuEventType === 'recipe') {
+    ningetsuLine = `<div class="ledger-row" style="color:#7b1fa2"><span>宁月打工</span><span>偷偷学到了一道新菜谱！</span></div>`;
+  }
+
+  const topHTML = `
+    <div class="settle-top">
+      <h3>第 ${week} 周 结算</h3>
+      <div class="ledger-row"><span>客流</span><span>${Math.round(r.traffic)}</span></div>
+      <div class="ledger-row"><span>客单价</span><span>${r.unitPrice.toFixed(2)}</span></div>
+      <div class="ledger-row"><span>营业额</span><span>${Math.round(r.revenue)}</span></div>
+      <div class="ledger-row"><span>食材成本</span><span>-${Math.round(r.foodCost)}</span></div>
+      <div class="ledger-row"><span>店铺固定</span><span>-${Math.round(r.fixedCost)}</span></div>
+      <div class="ledger-row"><span>家庭开销</span><span>-${Math.round(r.familyCost)}</span></div>
+      <div class="ledger-row"><span>打工收入</span><span>+${Math.round(r.workIncome)}</span></div>
+      ${purchaseLine}
+      ${ningetsuLine}
+      <div class="ledger-row total">
+        <span>现金变化</span>
+        <span>${r.cashChange >= 0 ? '+' : ''}${Math.round(r.cashChange)}</span>
+      </div>
+      <div class="ledger-row">
+        <span>声誉变化</span>
+        <span style="color:${repColor};font-weight:bold">${repChangeText}（当前 ${state.reputation.toFixed(1)}）</span>
+      </div>
+    </div>
+  `;
+
+  const bottomHTML = `
+    <div class="settle-bottom">
+      <div class="portraits">
+        ${portraitHTML('leye', '蕾叶')}
+        ${portraitHTML('kokono', '心玖')}
+      </div>
+      <div class="dialogue">${playScript(script)}</div>
+    </div>
+  `;
+
+  return topHTML + bottomHTML;
+}
+
+function calculateBusiness() {
+  const menuRecipes = state.menu
+    .map(id => RECIPES.find(r => r.id === id))
+    .filter(Boolean);
+
+  // ===== 餐厅岗位：增益直接叠加 =====
+  const kitchenChars = characters.filter(c => c.current.task === 'kitchen');
+  const kitchenMul = combineRestaurantBonus(kitchenChars.map(c => c.positionBonus.kitchen));
+
+  const washChars = characters.filter(c => c.current.task === 'wash');
+  const washMul = combineRestaurantBonus(washChars.map(c => c.positionBonus.wash));
+
+  const frontChars = characters.filter(c => c.current.task === 'front');
+  const frontMul = combineRestaurantBonus(frontChars.map(c => c.positionBonus.front));
+
+  // ===== 菜单平均单价 =====
+  const avgPrice = menuRecipes.length > 0
+    ? menuRecipes.reduce((s, r) => s + r.price, 0) / menuRecipes.length
+    : 0;
+
+  // ===== 声誉系数 =====
+  const repCoeff = 1 + (state.reputation - 50) * 0.006;
+
+  // ===== 单价系数 =====
+  const priceCoeff = Math.max(
+    CONFIG.priceCoeffMin,
+    1 - (avgPrice - CONFIG.priceCoeffBase) * CONFIG.priceCoeffRate
+  );
+
+  // ===== 菜单种类系数 =====
+  const menuCount = menuRecipes.length;
+  const menuTrafficCoeff = 1 + (menuCount - 1) * CONFIG.menuCountTrafficRate;
+  const menuPriceCoeff   = 1 + (menuCount - 1) * CONFIG.menuCountPriceRate;
+
+  // ===== 客流 =====
+  let traffic = CONFIG.baseTraffic;
+  traffic *= repCoeff;
+  traffic *= washMul;
+  traffic *= priceCoeff;
+  traffic *= menuTrafficCoeff;
+
+  // ===== 客单价 =====
+  const unitPrice = avgPrice * frontMul * menuPriceCoeff;
+
+  // ===== 营业额 =====
+  const revenue = traffic * unitPrice;
+
+  // ===== 成本率 =====
+  const avgCostRate = menuRecipes.length > 0
+    ? menuRecipes.reduce((s, r) => s + r.cost, 0)
+      / menuRecipes.reduce((s, r) => s + r.price, 0)
+    : 0;
+
+  // ===== 采购倍率 =====
+  let purchaseMul;
+  if (state.purchaseWeeks >= CONFIG.purchaseGraceWeeks) {
+    purchaseMul = 1 + CONFIG.purchasePenalty;
+  } else {
+    purchaseMul = 1 + state.lastPurchaseMul;
+  }
+
+  const foodCost = revenue * avgCostRate * purchaseMul;
+  const fixedCost = CONFIG.rent + CONFIG.utility + state.loan * CONFIG.loanRate;
+  const familyCost = CONFIG.familyCost * purchaseMul;
+
+  // ===== 打工收入 =====
+  let workIncome = 0;
+  characters.forEach(c => {
+    if (c.current.task === 'work' && c.current.workShop) {
+      const shop = SHOPS.find(s => s.id === c.current.workShop);
+      if (shop) workIncome += shop.baseWage * c.traits.workMultiplier;
+    }
+  });
+
+  const profit = revenue - foodCost - fixedCost;
+  const cashChange = profit - familyCost + workIncome;
+
+  return {
+    traffic, unitPrice, revenue,
+    foodCost, fixedCost, familyCost,
+    workIncome, profit, cashChange,
+    purchaseMul, kitchenMul, washMul, frontMul,
+    repCoeff, priceCoeff, menuTrafficCoeff, menuPriceCoeff,
+  };
+}
+
+// ============================================================
+//   结局
+// ============================================================
+function checkEnding() {
+  if (state.cash < 0) {
+    state.bankruptCount++;
+    showModal(playScript(STORY.bankrupt));
+    document.getElementById('modal-btn').onclick = () => {
+      closeModal();
+      resetGame();
+      switchPage('home');
+    };
+    return;
+  }
+  if (state.loan <= 0 && state.totalProfit >= CONFIG.targetProfit) {
+    showModal(playScript(STORY.success));
+    document.getElementById('modal-btn').onclick = closeModal;
+    return;
+  }
+
+  generateSpecialCustomers();
+  renderPage('home');
+  renderStatus();
+}
+
+function resetGame() {
+  state.week = 1;
+  state.cash = CONFIG.startCash;
+  state.loan = CONFIG.startLoan;
+  state.totalProfit = 0;
+  state.reputation = 50;
+  state.customers = [];
+  state.seenCustomers = [];
+  state.ledger = [];
+  state.menu = ['rice', 'miso', 'congyou'];
+  state.learnedRecipes = [];
+  state.lastTraffic = 0;
+  state.lastProfit = 0;
+  state.purchaseWeeks = 0;
+  state.lastPurchaseMul = 0;
+
+  SHOPS.forEach(s => { s.workCount = 0; s.affinity = 0; });
+
+  characters = CHARACTERS.map(createCharacterEntity);
+  initHomePositions();
+  updateWorkPositions();
+
+  spawnNormalCustomer();
+  spawnNormalCustomer();
+
+  renderStatus();
+  renderPage('home');
+}
+
+function initHomePositions() {
+  characters.forEach(c => {
+    if (TASK_ZONE[c.current.task] === 'home') {
+      assignHomeInitialPosition(c);
+    } else if (RESTAURANT_SPOTS[c.current.task]) {
+      const spots = RESTAURANT_SPOTS[c.current.task];
+      c.current.position = { x: spots[0].x, y: spots[0].y };
+    }
+  });
+}
+
+// ============================================================
+//   主循环
+// ============================================================
+let tickTimer = null;
+let lastTick = Date.now();
+
+function startTick() {
+  if (tickTimer) return;
+  lastTick = Date.now();
+  tickTimer = setInterval(() => {
+    const now = Date.now();
+    const dt = now - lastTick;
+    lastTick = now;
+    tickUpdate(dt);
+  }, 400);
+}
+
+function tickUpdate(dt) {
+  const active = document.querySelector('.page.active');
+  const pageId = active ? active.id : '';
+
+  if (pageId === 'page-home') {
+    tickCustomers(dt);
+    updateCustomersDOM();
+  } else if (pageId === 'page-family') {
+    tickHomeChars(dt);
+    updateHomeCharsDOM();
+  }
+}
+
+// ============================================================
+//   启动
+// ============================================================
+function init() {
+  state.menu = ['rice', 'miso', 'congyou'];
+  initHomePositions();
+  updateWorkPositions();
+
+  spawnNormalCustomer();
+  spawnNormalCustomer();
+
+  renderStatus();
+
+  const container = document.getElementById('page-container');
+  if (container) container.classList.add('no-padding');
+
+  renderPage('home');
+  startTick();
+}

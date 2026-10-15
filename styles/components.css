@@ -1,0 +1,825 @@
+/* ============================================================
+   场景小人
+   ============================================================ */
+.sprite {
+  --sprite-offset-y: 30px;
+  position: absolute;
+  width: 108px;
+  height: 144px;
+  transform: translate(-50%, calc(-100% + var(--sprite-offset-y)));
+  transition: left 3s linear, top 3s linear;
+  cursor: pointer;
+  text-align: center;
+  pointer-events: auto;
+}
+.sprite:hover { filter: brightness(1.1); }
+
+.sprite > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+.sprite-fallback {
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  pointer-events: none;
+}
+.sprite-fallback .fb-head {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  background: #7a5c3e;
+  border-radius: 50%;
+  border: 2px solid #333;
+}
+.sprite-fallback .fb-body {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34px;
+  height: 50px;
+  background: #c98e5e;
+  border-radius: 14px 14px 6px 6px;
+  border: 2px solid #333;
+}
+
+.sprite-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.sprite-energy {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -1px;
+  height: 4px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.sprite-energy-fill {
+  height: 100%;
+  background: #4caf50;
+  transition: width 0.3s;
+}
+.sprite.tired .sprite-energy-fill,
+.sprite.exhausted-sprite .sprite-energy-fill { background: #d32f2f; }
+
+.sprite.tired-sprite > img,
+.sprite.tired-sprite .sprite-fallback {
+  filter: hue-rotate(20deg) saturate(0.7);
+}
+
+.sprite-rest {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #4caf50;
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.customer-sprite {
+  width: 80px;
+  height: 100px;
+  opacity: 0.95;
+}
+.customer-sprite .sprite-fallback .fb-head { background: #5a7aa8; }
+.customer-sprite .sprite-fallback .fb-body { background: #7aa0c8; }
+
+/* 心玖：单独尺寸 */
+.sprite[data-char-id="kokono"] {
+  width: 99px;
+  height: 132px;
+  --sprite-offset-y: 30px;
+}
+
+/* ============================================================
+   头像 / 立绘
+   ============================================================ */
+.avatar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #eee;
+  flex-shrink: 0;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+.avatar-fallback {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: #ddd;
+  color: #666;
+  font-size: 10px;
+  text-align: center;
+  padding: 2px;
+  word-break: break-all;
+}
+
+.portrait {
+  width: 130px; height: 170px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: #eee; overflow: hidden;
+}
+.portrait img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.portrait-fallback {
+  display: none; width: 100%; height: 100%;
+  align-items: center; justify-content: center;
+  background: #ddd; color: #666; font-size: 14px;
+}
+
+/* ============================================================
+   弹窗
+   ============================================================ */
+#modal {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  justify-content: center; align-items: center;
+  padding: 16px; z-index: 100;
+}
+#modal.show { display: flex; }
+#modal-box {
+  background: #fdf6e3;
+  border: 3px solid #333; border-radius: 12px;
+  padding: 16px; width: 100%;
+  max-height: 90vh; overflow-y: auto;
+}
+#modal-text { font-size: 14px; line-height: 1.7; }
+#modal-text .speaker { font-weight: bold; color: #d32f2f; margin-right: 4px; }
+#modal-text p { margin-bottom: 6px; }
+#modal-btn { width: 100%; margin-top: 12px; }
+
+/* ============================================================
+   结算
+   ============================================================ */
+.settle-top {
+  border-bottom: 2px dashed #999;
+  padding-bottom: 10px; margin-bottom: 12px;
+}
+.settle-top h3 { font-size: 16px; margin-bottom: 8px; color: #333; }
+.settle-bottom { display: flex; flex-direction: column; gap: 10px; }
+.portraits { display: flex; justify-content: space-around; padding: 4px 0; }
+.dialogue {
+  background: #fff; border: 1px solid #ddd;
+  border-radius: 8px; padding: 10px;
+  font-size: 13px; line-height: 1.7;
+  max-height: 180px; overflow-y: auto;
+}
+.dialogue p { margin-bottom: 6px; }
+.dialogue .speaker { font-weight: bold; color: #d32f2f; }
+
+/* ============================================================
+   账本
+   ============================================================ */
+.ledger-row {
+  display: flex; justify-content: space-between;
+  font-size: 13px; padding: 3px 0;
+}
+.ledger-row.total {
+  border-top: 1px solid #333;
+  margin-top: 5px; padding-top: 6px;
+  font-weight: bold; font-size: 14px;
+}
+.week-record {
+  background: #fff; border: 1px solid #ccc;
+  border-radius: 6px; padding: 8px 10px; margin-bottom: 8px;
+}
+.week-record-title {
+  font-weight: bold; font-size: 13px;
+  color: #d32f2f; margin-bottom: 4px;
+}
+
+/* ============================================================
+   排班弹窗
+   ============================================================ */
+.schedule-row {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; border: 1px solid #ccc;
+  border-radius: 8px; padding: 8px 10px; margin-bottom: 8px;
+}
+.schedule-avatar { flex-shrink: 0; }
+.schedule-info { flex: 1; }
+.schedule-info b { font-size: 13px; }
+.schedule-row select {
+  padding: 6px; border: 1px solid #999;
+  border-radius: 4px; font-size: 13px;
+  font-family: inherit;
+}
+.energy-bar {
+  height: 6px; background: #eee;
+  border-radius: 3px; overflow: hidden;
+  margin: 4px 0 2px;
+}
+.energy-fill {
+  height: 100%; background: #4caf50;
+  transition: width 0.3s;
+}
+.energy-fill.critical { background: #d32f2f; }
+
+.work-locked {
+  padding: 6px 10px;
+  border: 2px solid #4caf50;
+  border-radius: 6px;
+  background: #e8f5e9;
+  text-align: center;
+  min-width: 84px;
+}
+
+/* ============================================================
+   菜单
+   ============================================================ */
+.recipe-item {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.recipe-item:hover { border-color: #ffd54f; }
+.recipe-item.selected { border-color: #4caf50; background: #e8f5e9; }
+.recipe-item.disabled { background: #f5f5f5; cursor: not-allowed; opacity: 0.6; }
+.recipe-info { flex: 1; }
+.recipe-check {
+  font-size: 20px; color: #4caf50;
+  font-weight: bold; margin-left: 10px;
+}
+
+/* ============================================================
+   商店街打工弹窗
+   ============================================================ */
+.shop-info {
+  background: #fff; border: 1px solid #ddd;
+  border-radius: 6px; padding: 6px 10px;
+  margin-bottom: 8px;
+}
+.recipe-unlock {
+  display: flex; justify-content: space-between;
+  font-size: 12px; padding: 5px 8px;
+  border-radius: 4px; margin-bottom: 4px;
+  background: #f0f0f0; color: #888;
+}
+.recipe-unlock.unlocked {
+  background: #e8f5e9; color: #2e7d32; font-weight: bold;
+}
+.worker-option {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; background: #fff;
+  border: 2px solid #ccc; border-radius: 8px;
+  margin-bottom: 6px; cursor: pointer;
+  transition: all 0.15s;
+}
+.worker-option:hover { border-color: #ffd54f; }
+.worker-option.selected { border-color: #4caf50; background: #e8f5e9; }
+.worker-option.disabled { background: #f5f5f5; cursor: not-allowed; opacity: 0.6; }
+.worker-info { flex: 1; }
+.worker-info b { font-size: 13px; }
+.income-preview {
+  margin-top: 12px; padding: 10px 12px;
+  background: #fff8e1; border: 2px solid #ffd54f;
+  border-radius: 8px; text-align: right;
+  font-size: 14px;
+}
+.income-preview b { font-size: 18px; color: #d32f2f; }
+
+/* ============================================================
+   对话气泡
+   ============================================================ */
+.talk-btn {
+  width: 100%; margin-top: 14px; padding: 10px;
+  font-size: 15px; font-weight: bold;
+  border: 2px solid #333; border-radius: 8px;
+  background: #ffd54f; cursor: pointer;
+  font-family: inherit;
+}
+.talk-btn:hover:not(:disabled) { background: #ffca28; }
+.talk-btn:disabled { background: #ccc; cursor: not-allowed; color: #666; }
+.talk-bubble {
+  background: #fff;
+  border: 2px solid #333;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 8px;
+  position: relative;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #333;
+}
+.talk-bubble::before {
+  content: '';
+  position: absolute;
+  top: -10px; left: 50%;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 10px solid #333;
+}
+.talk-bubble::after {
+  content: '';
+  position: absolute;
+  top: -7px; left: 50%;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 8px solid #fff;
+}
+
+/* ============================================================
+   状态标签
+   ============================================================ */
+.status-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: normal;
+}
+.status-tag.working { background: #e8f5e9; color: #2e7d32; border: 1px solid #4caf50; }
+.status-tag.resting { background: #e3f2fd; color: #1565c0; border: 1px solid #2196f3; }
+.status-tag.talked { background: #f3e5f5; color: #6a1b9a; border: 1px solid #ab47bc; }
+
+.tired-tag {
+  display: inline-block;
+  font-size: 10px;
+  background: #ff9800;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 6px;
+}
+.exhausted-tag {
+  display: inline-block;
+  font-size: 10px;
+  background: #616161;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 6px;
+}
+
+/* ============================================================
+   家庭页：状态卡
+   ============================================================ */
+.family-status-list { margin-top: 4px; }
+
+.status-card {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  background: #fff;
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.status-card.tired { background: #fff7e6; border-color: #ff9800; }
+.status-card.exhausted { background: #f0f0f0; border-color: #999; }
+
+.status-avatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.status-info { flex: 1; min-width: 0; }
+.status-name {
+  font-size: 14px;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.status-energy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.status-energy-bar {
+  flex: 1; height: 6px; background: #eee;
+  border-radius: 3px; overflow: hidden;
+}
+.status-energy-fill {
+  height: 100%; background: #4caf50;
+  transition: width 0.3s;
+}
+.status-card.tired .status-energy-fill { background: #ff9800; }
+.status-card.exhausted .status-energy-fill { background: #d32f2f; }
+.status-energy-text {
+  font-size: 11px; color: #666;
+  min-width: 42px; text-align: right;
+}
+.status-line {
+  font-size: 12px; color: #555;
+  line-height: 1.55; margin-bottom: 1px;
+  word-break: break-all;
+}
+.status-line b { color: #333; }
+
+.status-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(70, 70, 70, 0.62);
+  color: #fff;
+  display: flex;
+  align-items: center; justify-content: center;
+  font-size: 17px; font-weight: bold;
+  letter-spacing: 3px;
+  text-shadow: 1px 1px 3px #000;
+  z-index: 5;
+  pointer-events: none;
+  backdrop-filter: blur(1px);
+}
+
+/* ============================================================
+   音乐弹窗
+   ============================================================ */
+.music-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fff;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.music-option:hover { border-color: #ffd54f; }
+.music-option.selected { border-color: #4caf50; background: #e8f5e9; }
+.music-option.locked {
+  background: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.music-option.locked:hover { border-color: #ccc; }
+.music-info { flex: 1; }
+
+/* ============================================================
+   排班确认弹窗
+   ============================================================ */
+.confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+.confirm-row.not-ok {
+  border-color: #d32f2f;
+  background: #ffebee;
+}
+.confirm-avatar { flex-shrink: 0; }
+.confirm-info { flex: 1; }
+.confirm-info b { font-size: 13px; }
+
+/* ============================================================
+   对话选择按钮
+   ============================================================ */
+.dialogue-choice {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: bold;
+  font-family: inherit;
+  background: #fff;
+  border: 2px solid #333;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dialogue-choice:hover {
+  background: #ffd54f;
+  transform: translateY(-2px);
+  box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+}
+.dialogue-choice:last-child { margin-bottom: 0; }
+
+/* ============================================================
+   好感度剧情（旧版，暂留）
+   ============================================================ */
+.affinity-scene {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.affinity-portrait {
+  width: 180px;
+  height: 220px;
+  background: #eee;
+  border: 3px solid #333;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.affinity-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.affinity-portrait .portrait-fallback {
+  display: none;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  background: #ddd;
+  color: #666;
+  font-size: 14px;
+}
+
+.affinity-line {
+  background: #fff;
+  border: 2px solid #333;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.7;
+  min-height: 60px;
+  margin-bottom: 6px;
+}
+.affinity-line p { margin: 0; }
+.affinity-line .speaker {
+  font-weight: bold;
+  color: #d32f2f;
+  margin-right: 4px;
+}
+
+.affinity-progress {
+  text-align: right;
+  font-size: 11px;
+  color: #888;
+}
+
+/* ============================================================
+   过场动画
+   ============================================================ */
+#modal.cutscene {
+  padding: 0;
+}
+#modal.cutscene #modal-box {
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+}
+#modal.cutscene #modal-text {
+  width: 100%;
+  height: 100%;
+}
+
+.cutscene-root {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-color: #222;
+}
+
+.cutscene-stage {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 立绘：位置全部 CSS 控制 */
+.cutscene-portrait {
+  position: absolute;
+  top: 42%;
+  width: 260px;
+  height: 360px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 5;
+}
+.cutscene-portrait-left   { left: 30%; }
+.cutscene-portrait-center { left: 50%; }
+.cutscene-portrait-right  { left: 75%; }
+
+.cutscene-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+}
+.cutscene-portrait .portrait-fallback {
+  display: none;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.85);
+  color: #666;
+  font-size: 14px;
+  border-radius: 12px;
+}
+
+/* 对话框 */
+.cutscene-dialogue {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 3px solid #333;
+  border-radius: 12px;
+  padding: 14px 16px;
+  height: 160px;
+  box-sizing: border-box;
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+.cutscene-line {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #333;
+}
+.cutscene-line .speaker {
+  font-weight: bold;
+  color: #d32f2f;
+  margin-right: 4px;
+}
+.cutscene-hint {
+  text-align: right;
+  font-size: 11px;
+  color: #888;
+  margin-top: 8px;
+  animation: cutHint 1.2s ease-in-out infinite;
+}
+@keyframes cutHint {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
+/* ============================================================
+   过场动画：小人动作
+   ============================================================ */
+
+/* 睡觉：轻微上下浮动 */
+.cutscene-stage .sprite.anim-sleep {
+  animation: spriteSleep 2s ease-in-out infinite;
+}
+@keyframes spriteSleep {
+  0%, 100% { transform: translate(-50%, calc(-100% + var(--sprite-offset-y))) translateY(0); }
+  50%      { transform: translate(-50%, calc(-100% + var(--sprite-offset-y))) translateY(-4px); }
+}
+
+/* 从左边冲进来 */
+.cutscene-stage .sprite.anim-dash-in {
+  animation: spriteDashIn 0.5s ease-out;
+}
+@keyframes spriteDashIn {
+  from {
+    transform: translate(calc(-50% - 320px), calc(-100% + var(--sprite-offset-y)));
+  }
+  to {
+    transform: translate(-50%, calc(-100% + var(--sprite-offset-y)));
+  }
+}
+
+/* 被撞飞：向右上飞出 + 旋转 + 淡出 */
+.cutscene-stage .sprite.anim-knock-out {
+  animation: spriteKnockOut 0.7s ease-out forwards;
+}
+@keyframes spriteKnockOut {
+  0% {
+    transform: translate(-50%, calc(-100% + var(--sprite-offset-y))) translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, calc(-100% + var(--sprite-offset-y))) translate(220px, -240px) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+   过场动画：道具层（被子、桌子等）
+   ============================================================ */
+.cutscene-deco {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-weight: bold;
+  text-align: center;
+  pointer-events: none;
+  box-sizing: border-box;
+  z-index: 10;    /* 在小人下面 */
+}
+
+/* ============================================================
+   贷款还款
+   ============================================================ */
+.stat.clickable {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 8px;
+  transition: background 0.15s;
+}
+.stat.clickable:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.repay-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 16px;
+  font-family: inherit;
+  border: 2px solid #333;
+  border-radius: 8px;
+  background: #fff;
+  text-align: right;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+.repay-input:focus {
+  outline: none;
+  border-color: #ffd54f;
+}
+
+.repay-preview {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 12px;
+  min-height: 20px;
+  transition: all 0.15s;
+}
+.repay-preview.ok {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 2px solid #4caf50;
+}
+.repay-preview.error {
+  background: #ffebee;
+  color: #c62828;
+  border: 2px solid #d32f2f;
+}
