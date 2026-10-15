@@ -202,7 +202,7 @@ const CUSTOMERS = [
     type: 'special',
     minWeek: 3,
     once: false,
-    chance: 0.5,
+    chance: 1,
     condition: function () {
       return state.lastWeekSpecials &&
              state.lastWeekSpecials.indexOf('youtuber') >= 0;
@@ -230,7 +230,7 @@ const CUSTOMERS = [
     type: 'special',
     minWeek: 2,
     once: false,
-    chance: 0.6,
+    chance: 0.4,
     condition: function () {
       return state.menu.indexOf('parfait') >= 0;
     },
