@@ -124,7 +124,6 @@ function init() {
   spawnNormalCustomer();
   generateSpecialCustomers();
 
-  state.seasonalEvent = rollSeasonalEvent();
   renderStatus();
 
   const container = document.getElementById('page-container');
@@ -132,11 +131,8 @@ function init() {
 
   renderPage('home');
 
-  // 播放开场动画，播完再启动主循环
-  playCutscenes([OPENING_LIVING_SCRIPT, OPENING_BEDROOM_SCRIPT], () => {
-    startTick();
-    startTutorial();
-  });
+  // 显示主菜单，等待玩家选择
+  showTitleScreen();
 }
 
 // ============================================================
@@ -174,4 +170,81 @@ function restartGame() {
   switchPage('home');
   startTick();
   playCutscenes([OPENING_LIVING_SCRIPT, OPENING_BEDROOM_SCRIPT], () => {});
+}
+
+// ============================================================
+//   主菜单
+// ============================================================
+function showTitleScreen() {
+  const el = document.getElementById('title-screen');
+  if (el) el.style.display = 'flex';
+}
+
+function hideTitleScreen() {
+  const el = document.getElementById('title-screen');
+  if (el) el.style.display = 'none';
+}
+
+// ============================================================
+//   新游戏
+// ============================================================
+function startNewGame() {
+  hideTitleScreen();
+  resetGame();
+
+  playCutscenes([OPENING_LIVING_SCRIPT, OPENING_BEDROOM_SCRIPT], () => {
+    startTick();
+    startTutorial();
+  });
+}
+
+// ============================================================
+//   导入存档
+// ============================================================
+function showImportDialog() {
+  // 先隐藏主菜单，让弹窗露出来
+  hideTitleScreen();
+
+  showModal(`
+    <div style="text-align:center;padding:6px 0 12px">
+      <div style="font-size:36px">📥</div>
+      <h2 style="margin-top:6px;color:#333">导入存档</h2>
+      <p style="font-size:12px;color:#888;margin-top:4px">
+        将存档密钥粘贴到下方
+      </p>
+    </div>
+    <textarea class="save-textarea" id="import-textarea"
+              placeholder="粘贴存档密钥..."></textarea>
+    <button style="width:100%;margin-top:10px" onclick="doImportAndStart()">确认导入</button>
+    <button style="width:100%;margin-top:6px;background:#e0e0e0" onclick="closeImportDialog()">返回</button>
+  `);
+  document.getElementById('modal-btn').style.display = 'none';
+}
+
+function closeImportDialog() {
+  closeModal();
+  showTitleScreen();   // 显示主菜单
+}
+
+function doImportAndStart() {
+  const ta = document.getElementById('import-textarea');
+  const str = ta ? ta.value.trim() : '';
+
+  if (!str) {
+    alert('请先粘贴存档密钥');
+    return;
+  }
+
+  if (!importSaveString(str)) {
+    alert('导入失败，请检查密钥是否完整');
+    return;
+  }
+
+  closeModal();
+  hideTitleScreen();
+  renderStatus();
+  renderPage('home');
+  startTick();
+
+  alert('✅ 导入成功！');
 }

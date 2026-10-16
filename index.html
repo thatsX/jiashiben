@@ -9,6 +9,13 @@
 <link rel="stylesheet" href="styles/components.css">
 </head>
 <body>
+<div id="title-screen">
+<div class="title-logo">家是本</div>
+<div class="title-sub">餐饮店</div>
+<div class="title-desc">抓住重大历史机遇，重返NEST！</div>
+<button class="title-btn primary" onclick="startNewGame()">新游戏</button>
+<button class="title-btn" onclick="showImportDialog()">导入存档</button>
+</div>
 <div id="app">
 
   <header id="status-bar">
@@ -82,6 +89,7 @@
 <script src="systems/loan.js"></script>
 <script src="systems/tutorial.js"></script>
 <script src="systems/settlement.js"></script>
+<script src="systems/save.js"></script>
 
 <!-- 界面层 -->
 <script src="ui/modal.js"></script>
