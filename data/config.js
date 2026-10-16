@@ -1,5 +1,5 @@
 const CONFIG = {
-  startCash: 100000000,
+  startCash: 10000,
   startLoan: 300000,
   targetProfit: 1000000,
   baseTraffic: 250,
