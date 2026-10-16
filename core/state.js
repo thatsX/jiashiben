@@ -1,5 +1,6 @@
 let state = {
   week: 1,
+  tutorialDone: false,
   cash: CONFIG.startCash,
   loan: CONFIG.startLoan,
   totalProfit: 0,

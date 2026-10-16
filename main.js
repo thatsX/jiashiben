@@ -124,6 +124,7 @@ function init() {
   // 播放开场动画，播完再启动主循环
   playCutscenes([OPENING_LIVING_SCRIPT, OPENING_BEDROOM_SCRIPT], () => {
     startTick();
+    startTutorial();
   });
 }
 

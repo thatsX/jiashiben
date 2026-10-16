@@ -823,3 +823,112 @@
   color: #c62828;
   border: 2px solid #d32f2f;
 }
+
+/* ============================================================
+   新手引导
+   ============================================================ */
+#tutorial-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  justify-content: center;
+  align-items: flex-end;
+  padding: 20px;
+  padding-bottom: 90px;
+  background: rgba(0, 0, 0, 0.4);   /* 加暗背景，视觉上"压住"底下 */
+  /* 去掉 pointer-events: none */
+}
+#tutorial-overlay.show {
+  display: flex;
+}
+
+.tutorial-box {
+  background: #fdf6e3;
+  border: 3px solid #333;
+  border-radius: 12px;
+  padding: 16px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  pointer-events: auto;
+  animation: tutorialPop 0.2s ease-out;
+}
+@keyframes tutorialPop {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tutorial-progress {
+  font-size: 11px;
+  color: #888;
+  text-align: right;
+  margin-bottom: 6px;
+}
+.tutorial-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+.tutorial-subtext {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+
+.tutorial-actions {
+  display: flex;
+  gap: 8px;
+}
+.tutorial-skip {
+  flex: 1;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: bold;
+  font-family: inherit;
+  background: #e0e0e0;
+  border: 2px solid #999;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #666;
+}
+.tutorial-skip:hover {
+  background: #d0d0d0;
+}
+.tutorial-next {
+  flex: 2;
+  padding: 10px;
+  font-size: 15px;
+  font-weight: bold;
+  font-family: inherit;
+  background: #ffd54f;
+  border: 2px solid #333;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.tutorial-next:hover {
+  background: #ffca28;
+}
+
+/* 被高亮的元素 */
+.tutorial-highlight {
+  position: relative !important;
+  z-index: 600 !important;
+  outline: 4px solid #ffd54f;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 8px rgba(255, 213, 79, 0.35);
+  animation: tutorialPulse 1.5s ease-in-out infinite;
+}
+@keyframes tutorialPulse {
+  0%, 100% {
+    outline-color: #ffd54f;
+    box-shadow: 0 0 0 8px rgba(255, 213, 79, 0.35);
+  }
+  50% {
+    outline-color: #ff9800;
+    box-shadow: 0 0 0 12px rgba(255, 152, 0, 0.25);
+  }
+}
