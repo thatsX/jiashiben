@@ -28,6 +28,12 @@ let state = {
 
   // 心玖家务消耗（好感 80 时从 5 降到 2）
   houseworkCost: 5,
+
+    // 数值成长
+  seasonalEvent: null,           // 本周季节事件
+  achievements: [],              // 已达成的成就 id
+  totalRepaid: 0,                // 累计还款金额（成就用）
+  earlyLoanWeek: null,           // 提前还清贷款的周数（成就用）
 };
 
 function createCharacterEntity(data) {

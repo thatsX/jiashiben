@@ -26,6 +26,11 @@ function checkEnding() {
     return;
   }
   if (state.loan <= 0 && state.cash >= CONFIG.targetProfit) {
+    checkAchievements();
+    if (state.week <= 52 && state.achievements.indexOf('week52') < 0) {
+      state.achievements.push('week52');
+    }
+
     playCutscene(SUCCESS_SCRIPT, () => {
       showEndingMenu();
     });
@@ -56,6 +61,10 @@ function resetGame() {
   state.tempTrafficBonus = 0;
   state.tempUnitPriceBonus = 0;
   state.pendingRecipes = [];
+  state.seasonalEvent = null;
+  state.achievements = [];
+  state.totalRepaid = 0;
+  state.earlyLoanWeek = null;
 
   stopBGM();
 
@@ -114,6 +123,7 @@ function init() {
   spawnNormalCustomer();
   generateSpecialCustomers();
 
+  state.seasonalEvent = rollSeasonalEvent();
   renderStatus();
 
   const container = document.getElementById('page-container');
@@ -129,29 +139,38 @@ function init() {
 }
 
 // ============================================================
-//   结局菜单（成功 / 破产后显示）
+//   结局菜单（成功 / 破产后显示）恭喜你带领咖喱人，成功传播家是本文化，夺回NEST！
 // ============================================================
 function showEndingMenu() {
+  const achieved = ACHIEVEMENTS.filter(a => state.achievements.indexOf(a.id) >= 0);
+  const listHTML = ACHIEVEMENTS.map(a => {
+    const got = state.achievements.indexOf(a.id) >= 0;
+    return `<div style="text-align:left;font-size:12px;padding:3px 0;color:${got ? '#2e7d32' : '#999'}">
+      ${got ? '✅' : '❌'} ${a.name} <span style="color:#888">— ${a.desc}</span>
+    </div>`;
+  }).join('');
+
   showModal(`
-    <div style="text-align:center;padding:20px 0">
+    <div style="text-align:center;padding:10px 0">
       <div style="font-size:44px">🎉</div>
-      <h2 style="margin-top:10px;color:#d32f2f">恭喜通关</h2>
-      <p style="margin-top:12px;font-size:14px;color:#666;line-height:1.7">
-        恭喜你带领咖喱人，成功传播家是本文化，夺回NEST！
+      <h2 style="margin-top:10px;color:#d32f2f">恭喜你带领咖喱人成功传播家是本文化，夺回NEST！</h2>
+      <p style="margin-top:6px;font-size:13px;color:#666">
+        第 ${state.week - 1} 周 · 成就 ${achieved.length}/${ACHIEVEMENTS.length}
       </p>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:10px;margin:10px 0">
+      ${listHTML}
     </div>
     <button style="width:100%;margin-top:12px" onclick="restartGame()">🔄 重新开始</button>
   `);
   document.getElementById('modal-btn').style.display = 'none';
 }
 
-// 从结局重开
 function restartGame() {
   closeModal();
+  state.gameCleared = false;
   resetGame();
   switchPage('home');
   startTick();
-
-  // 重新播开场动画
   playCutscenes([OPENING_LIVING_SCRIPT, OPENING_BEDROOM_SCRIPT], () => {});
 }

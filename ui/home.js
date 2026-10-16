@@ -88,6 +88,14 @@ function renderHome() {
   else if (rep >= 60) repDesc = '小有名气';
   else if (rep < 20) repDesc = '快倒闭了';
 
+  // 季节事件显示
+  let eventHTML = '';
+  if (state.seasonalEvent && state.seasonalEvent.type !== 'none') {
+    const ev = state.seasonalEvent;
+    const color = ev.value > 0 ? '#4caf50' : '#d32f2f';
+    eventHTML = `<div class="row" style="color:${color}"><span class="label">本周</span><span class="value">${ev.name} · ${ev.desc}</span></div>`;
+  }
+
   let previewHTML = '';
   if (canOperate && state.menu.length > 0) {
     const preview = calculateBusiness(true);
@@ -111,6 +119,7 @@ function renderHome() {
         <div class="row ${purchaseClass}"><span class="label">采购</span><span class="value">${purchaseText}</span></div>
         <div class="row"><span class="label">音乐</span><span class="value">${musicName}</span></div>
         ${previewHTML}
+        ${eventHTML}
       </div>
 
       <button class="scene-menu-btn" onclick="switchPage('menu')">

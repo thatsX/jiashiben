@@ -130,6 +130,8 @@ function confirmAndSettle() {
 //   正式结算
 // ============================================================
 function doSettle(restaurantOpen) {
+  checkAchievements();
+
   // ============ 检查未对话的特殊客人（必须在清空之前）============
   const survivingGuests = [];
   state.customers.forEach(c => {
@@ -211,7 +213,6 @@ function doSettle(restaurantOpen) {
 
   // ============================================================
   //   精力结算
-  //   顺序：工作扣 → 休息回 → 判断心玖 → 家务 → 强制休息
   // ============================================================
 
   // 1. 工作扣精力
@@ -330,6 +331,9 @@ function doSettle(restaurantOpen) {
   state.tempUnitPriceBonus = 0;
   state.tempTrafficBonus = 0;
 
+  // ============ 刷新下周季节事件 ============
+  state.seasonalEvent = rollSeasonalEvent();
+
   // ============ 进入新一周：刷新客人 ============
   spawnNormalCustomer();
   spawnNormalCustomer();
@@ -387,6 +391,14 @@ function showSettlementDialogue(settleData) {
 //   结算弹窗 HTML
 // ============================================================
 function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEventType, ningetsuExtraMoney, houseworkInfo, survivingGuests) {
+  // 季节事件
+  let eventLine = '';
+  if (state.seasonalEvent && state.seasonalEvent.type !== 'none') {
+    const ev = state.seasonalEvent;
+    const color = ev.value > 0 ? '#4caf50' : '#d32f2f';
+    eventLine = `<div class="ledger-row" style="color:${color}"><span>下周事件</span><span>${ev.name}（${ev.desc}）</span></div>`;
+  }
+
   let purchaseLine = '';
   if (state.purchaseWeeks >= CONFIG.purchaseGraceWeeks) {
     purchaseLine = `<div class="ledger-row" style="color:#d32f2f"><span>采购</span><span>断采！成本 &amp; 家庭开销 +100%</span></div>`;
@@ -460,6 +472,7 @@ function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEve
       ${houseworkLine}
       ${ningetsuLine}
       ${survivingLine}
+      ${eventLine}
       <div class="ledger-row total">
         <span>现金变化</span>
         <span>${r.cashChange >= 0 ? '+' : ''}${Math.round(r.cashChange)}</span>
@@ -482,4 +495,19 @@ function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEve
   `;
 
   return topHTML + bottomHTML;
+}
+
+// ============================================================
+//   成就检查
+// ============================================================
+function checkAchievements() {
+  const add = (id) => {
+    if (state.achievements.indexOf(id) < 0) state.achievements.push(id);
+  };
+
+  if (state.bankruptCount === 0) add('noBankrupt');
+  if (state.learnedRecipes.length >= RECIPES.length) add('allRecipes');
+  if (state.reputation >= 100) add('rep100');
+  if (characters.every(c => c.current.affinity >= 80)) add('allAffinity80');
+  if (state.loan <= 0 && state.week <= 35) add('earlyLoan');
 }

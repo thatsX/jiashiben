@@ -25,7 +25,15 @@ function getPositionEnergyMultiplier(taskId) {
 function calculateBusiness(restaurantOpen) {
   // ============ 未营业：只算固定支出 ============
   if (!restaurantOpen) {
-    const fixedCost = CONFIG.rent + CONFIG.utility + state.loan * CONFIG.loanRate;
+    const rentMult = 1 + Math.floor(state.week / CONFIG.rentWeekThreshold) * CONFIG.rentIncreaseRate;
+    const baseFixed = CONFIG.rent * rentMult + CONFIG.utility;
+
+    let fixedMul = 1;
+    if (state.seasonalEvent && state.seasonalEvent.type === 'fixed') {
+      fixedMul += state.seasonalEvent.value;
+    }
+
+    const fixedCost = baseFixed * fixedMul + state.loan * CONFIG.loanRate;
 
     let purchaseMul;
     if (state.purchaseWeeks >= CONFIG.purchaseGraceWeeks) {
@@ -74,6 +82,7 @@ function calculateBusiness(restaurantOpen) {
     ? menuRecipes.reduce((s, r) => s + r.price, 0) / menuRecipes.length
     : 0;
 
+  // 声誉客流加成（原有公式）
   const repCoeff = 1 + (state.reputation - 50) * 0.006;
 
   const priceCoeff = Math.max(
@@ -87,11 +96,14 @@ function calculateBusiness(restaurantOpen) {
 
   const musicMul = getMusicMultiplier();
 
-  // 特殊客人带来的临时加成
   const tempTraffic = state.tempTrafficBonus || 0;
   const tempPrice   = state.tempUnitPriceBonus || 0;
 
-  // 客流
+  let eventTraffic = 0;
+  if (state.seasonalEvent && state.seasonalEvent.type === 'traffic') {
+    eventTraffic = state.seasonalEvent.value;
+  }
+
   let traffic = CONFIG.baseTraffic;
   traffic *= repCoeff;
   traffic *= washMul;
@@ -99,18 +111,16 @@ function calculateBusiness(restaurantOpen) {
   traffic *= menuTrafficCoeff;
   traffic *= musicMul;
   traffic *= (1 + tempTraffic);
+  traffic *= (1 + eventTraffic);
 
-  // 客单价
   const unitPrice = avgPrice * frontMul * menuPriceCoeff * (1 + tempPrice);
   const revenue = traffic * unitPrice;
 
-  // 成本率
   const avgCostRate = menuRecipes.length > 0
     ? menuRecipes.reduce((s, r) => s + r.cost, 0)
       / menuRecipes.reduce((s, r) => s + r.price, 0)
     : 0;
 
-  // 采购倍率
   let purchaseMul;
   if (state.purchaseWeeks >= CONFIG.purchaseGraceWeeks) {
     purchaseMul = 1 + CONFIG.purchasePenalty;
@@ -118,11 +128,24 @@ function calculateBusiness(restaurantOpen) {
     purchaseMul = 1 + state.lastPurchaseMul;
   }
 
-  const foodCost = revenue * avgCostRate * purchaseMul;
-  const fixedCost = CONFIG.rent + CONFIG.utility + state.loan * CONFIG.loanRate;
+  let eventCost = 0;
+  if (state.seasonalEvent && state.seasonalEvent.type === 'cost') {
+    eventCost = state.seasonalEvent.value;
+  }
+
+  const foodCost = revenue * avgCostRate * purchaseMul * (1 + eventCost);
+
+  const rentMult = 1 + Math.floor(state.week / CONFIG.rentWeekThreshold) * CONFIG.rentIncreaseRate;
+  const baseFixed = CONFIG.rent * rentMult + CONFIG.utility;
+
+  let fixedMul = 1;
+  if (state.seasonalEvent && state.seasonalEvent.type === 'fixed') {
+    fixedMul += state.seasonalEvent.value;
+  }
+
+  const fixedCost = baseFixed * fixedMul + state.loan * CONFIG.loanRate;
   const familyCost = CONFIG.familyCost * purchaseMul;
 
-  // 打工收入
   let workIncome = 0;
   characters.forEach(c => {
     if (c.current.task === 'work' && c.current.workShop && !isExhausted(c)) {
@@ -141,5 +164,6 @@ function calculateBusiness(restaurantOpen) {
     purchaseMul, kitchenMul, washMul, frontMul,
     repCoeff, priceCoeff, menuTrafficCoeff, menuPriceCoeff, musicMul,
     tempTraffic, unitPriceBonus: tempPrice,
+    eventTraffic, eventCost, rentMult,
   };
 }
