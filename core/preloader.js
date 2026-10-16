@@ -59,12 +59,12 @@ function startPreload(onProgress, onDone) {
   const finish = () => {
     if (finished) return;
     finished = true;
-    if (onProgress) onProgress(1);
+    if (onProgress) onProgress(1, total, total);
     if (onDone) onDone();
   };
 
   // 超时保护：最多等 15 秒
-  setTimeout(finish, 15000);
+  setTimeout(finish, 60000);
 
   if (total === 0) {
     finish();
@@ -75,7 +75,7 @@ function startPreload(onProgress, onDone) {
     const img = new Image();
     const next = () => {
       done++;
-      if (onProgress) onProgress(done / total);
+        if (onProgress) onProgress(done / total, done, total);
       if (done >= total) finish();
     };
     img.onload = next;

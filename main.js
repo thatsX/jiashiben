@@ -9,12 +9,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // 先加载资源，再初始化游戏
   startPreload(
-    (progress) => {
+      (progress, done, total) => {
       const pct = Math.round(progress * 100);
       const fill = document.getElementById('loading-fill');
       const text = document.getElementById('loading-text');
       if (fill) fill.style.width = pct + '%';
-      if (text) text.textContent = '加载中... ' + pct + '%';
+      if (text) text.textContent = '加载中... ' + pct + '% (' + done + '/' + total + ')';
     },
     () => {
       // 加载完成 → 启动游戏
