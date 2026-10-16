@@ -348,9 +348,15 @@ function doSettle(restaurantOpen) {
   else if (r.profit > -5000) script = STORY.settlement.slightLoss;
   else script = STORY.settlement.bigLoss;
 
-  const tiredChar = characters.find(c => isTired(c));
-  if (tiredChar && STORY.tired[tiredChar.id]) {
-    script = script.concat([{ text: '———' }], STORY.tired[tiredChar.id]);
+    // 精疲力竭优先，其次疲惫
+  const exhaustedChar = characters.find(c => isExhausted(c));
+  if (exhaustedChar && STORY.exhausted && STORY.exhausted[exhaustedChar.id]) {
+    script = script.concat([{ text: '———' }], STORY.exhausted[exhaustedChar.id]);
+  } else {
+    const tiredChar = characters.find(c => isTired(c));
+    if (tiredChar && STORY.tired[tiredChar.id]) {
+      script = script.concat([{ text: '———' }], STORY.tired[tiredChar.id]);
+    }
   }
 
   const settleData = {
