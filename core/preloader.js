@@ -1,55 +1,40 @@
 /* ============================================================
    core/preloader.js —— 资源预加载
-   加载所有贴图（不含音乐）
    ============================================================ */
 
-// ============================================================
-//   构建资源路径列表
-// ============================================================
+// 全局持有图片引用，防止浏览器丢弃缓存
+const __preloadedImages = [];
+
 function buildPreloadList() {
   const list = [];
 
-  // 角色：头像 + 立绘 + 小人
   if (typeof CHARACTERS !== 'undefined') {
     CHARACTERS.forEach(c => {
       list.push('assets/chars/' + c.id + '.png');
       list.push('assets/chars_full/' + c.id + '.png');
       list.push('assets/sprites/' + c.id + '.png');
-      // 疲惫 / 筋疲力尽变体（有就加载，没就 onerror 跳过）
       list.push('assets/sprites/' + c.id + '_tired.png');
       list.push('assets/sprites/' + c.id + '_exhausted.png');
     });
   }
 
-  // 客人（含特殊客人）
   if (typeof CUSTOMERS !== 'undefined') {
     CUSTOMERS.forEach(c => {
       list.push('assets/customers/' + c.id + '.png');
     });
   }
 
-  // 背景
-  [
-    'home', 'restaurant', 'bedroom', 'bridge', 'nest', 'shop', 'livehouse',
-  ].forEach(name => {
+  ['home', 'restaurant', 'bedroom', 'bridge', 'nest', 'shop', 'livehouse'].forEach(name => {
     list.push('assets/bg/' + name + '.png');
   });
 
-  // UI 素材
-  [
-    'speaker', 'stove', 'sink', 'counter',
-  ].forEach(name => {
+  ['speaker', 'stove', 'sink', 'counter'].forEach(name => {
     list.push('assets/ui/' + name + '.png');
   });
 
   return list;
 }
 
-// ============================================================
-//   开始预加载
-//   onProgress(0~1)
-//   onDone()
-// ============================================================
 function startPreload(onProgress, onDone) {
   const urls = buildPreloadList();
   const total = urls.length;
@@ -60,26 +45,44 @@ function startPreload(onProgress, onDone) {
     if (finished) return;
     finished = true;
     if (onProgress) onProgress(1, total, total);
-    if (onDone) onDone();
+    // 延迟 500ms，让浏览器稳定缓存
+    setTimeout(() => {
+      if (onDone) onDone();
+    }, 500);
   };
 
-  // 超时保护：最多等 15 秒
+  // 60 秒兜底
   setTimeout(finish, 60000);
 
-  if (total === 0) {
-    finish();
-    return;
-  }
+  if (total === 0) { finish(); return; }
 
   urls.forEach(url => {
     const img = new Image();
+
+    // ★ 关键：持有引用，不让 GC 回收
+    __preloadedImages.push(img);
+
+    let counted = false;
     const next = () => {
+      if (counted) return;
+      counted = true;
       done++;
-        if (onProgress) onProgress(done / total, done, total);
+      if (onProgress) onProgress(done / total, done, total);
       if (done >= total) finish();
     };
-    img.onload = next;
-    img.onerror = next;   // 找不到也算完成，不阻塞
+
+    img.onload = () => {
+      // ★ 关键：decode() 确保图片可以被立即绘制
+      if (img.decode) {
+        img.decode().then(next).catch(next);
+      } else {
+        next();
+      }
+    };
+    img.onerror = next;
     img.src = url;
+
+    // 单张图 15 秒超时，避免某张图卡住整个流程
+    setTimeout(next, 15000);
   });
 }

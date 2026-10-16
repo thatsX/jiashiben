@@ -9,7 +9,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // 先加载资源，再初始化游戏
   startPreload(
-      (progress, done, total) => {
+    (progress, done, total) => {
       const pct = Math.round(progress * 100);
       const fill = document.getElementById('loading-fill');
       const text = document.getElementById('loading-text');
@@ -17,14 +17,12 @@ window.addEventListener('DOMContentLoaded', () => {
       if (text) text.textContent = '加载中... ' + pct + '% (' + done + '/' + total + ')';
     },
     () => {
-      // 加载完成 → 启动游戏
       try { init(); }
       catch (e) {
         console.error('初始化失败:', e);
         alert('初始化出错：' + e.message);
       }
 
-      // 淡出加载页
       const screen = document.getElementById('loading-screen');
       if (screen) {
         screen.classList.add('fade-out');
