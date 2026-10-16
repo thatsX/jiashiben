@@ -9,6 +9,14 @@
 <link rel="stylesheet" href="styles/components.css">
 </head>
 <body>
+<div id="loading-screen">
+  <div class="loading-logo">家是本</div>
+  <div class="loading-sub">餐饮店</div>
+  <div class="loading-bar-wrap">
+    <div class="loading-bar-fill" id="loading-fill"></div>
+  </div>
+  <div class="loading-text" id="loading-text">加载中... 0%</div>
+</div>
 <div id="title-screen">
 <div class="title-logo">家是本</div>
 <div class="title-sub">餐饮店</div>
@@ -77,6 +85,7 @@
 <script src="core/state.js"></script>
 <script src="core/energy.js"></script>
 <script src="core/audio.js"></script>
+<script src="core/preloader.js"></script>
 
 <!-- 逻辑层 -->
 <script src="systems/position.js"></script>
