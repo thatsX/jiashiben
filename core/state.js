@@ -34,6 +34,12 @@ let state = {
   achievements: [],              // 已达成的成就 id
   totalRepaid: 0,                // 累计还款金额（成就用）
   earlyLoanWeek: null,           // 提前还清贷款的周数（成就用）
+
+  stationUpgrades: {
+  kitchen: 0,
+  wash: 0,
+  front: 0,
+  },
 };
 
 function createCharacterEntity(data) {

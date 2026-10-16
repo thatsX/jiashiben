@@ -2,16 +2,18 @@
    ui/shop.js —— 商店街
    ============================================================ */
 
+// ============================================================
+//   渲染商店街地图
+// ============================================================
 function renderShop() {
   const el = document.getElementById('page-shop');
 
-  const buildingsHTML = SHOPS.map(s => {
-    // 该店正在打工的角色
+  // 四个商店建筑
+  const shopsHTML = SHOPS.map(s => {
     const workers = characters.filter(c =>
       c.current.task === 'work' && c.current.workShop === s.id
     );
 
-    // 左上角小头像（最多 3 个）
     const avatarsHTML = workers.slice(0, 3).map(c =>
       `<div class="shop-worker-avatar" title="${c.name}">
          ${avatarHTML(c.id, 'chars', 28)}
@@ -29,15 +31,29 @@ function renderShop() {
     `;
   }).join('');
 
+  // 设备交易所建筑
+  const equipHTML = `
+    <div class="shop-building equip-building"
+         style="left:${EQUIP_EXCHANGE_POS.x}%; top:${EQUIP_EXCHANGE_POS.y}%"
+         onclick="openEquipExchange()">
+      <div class="shop-name">🔧 设备交易所</div>
+      <div class="shop-count">升级设备</div>
+    </div>
+  `;
+
   el.innerHTML = `
     <div id="scene-shop">
       <div class="shop-road shop-road-h"></div>
       <div class="shop-road shop-road-v"></div>
-      ${buildingsHTML}
+      ${shopsHTML}
+      ${equipHTML}
     </div>
   `;
 }
 
+// ============================================================
+//   商店打工弹窗
+// ============================================================
 function openShop(shopId) {
   const shop = SHOPS.find(s => s.id === shopId);
   if (!shop) return;
@@ -161,4 +177,78 @@ function toggleWorker(shopId, charId) {
   }
 
   openShop(shopId);
+}
+
+// ============================================================
+//   设备交易所
+// ============================================================
+function openEquipExchange() {
+  const listHTML = STATION_UPGRADES.map(up => {
+    const lv = state.stationUpgrades[up.station] || 0;
+    const maxLv = up.maxLv || 3;
+    const isMax = lv >= maxLv;
+    const canBuy = !isMax && state.cash >= up.price;
+
+    const currentCap = getStationCapacity(up.station);
+
+    // 模拟下一级承载力
+    const oldLv = state.stationUpgrades[up.station];
+    state.stationUpgrades[up.station] = lv + 1;
+    const nextCap = getStationCapacity(up.station);
+    state.stationUpgrades[up.station] = oldLv;
+
+    const btnText = isMax ? '已满级' : (canBuy ? '升级' : '现金不足');
+    const btnCls = (!canBuy || isMax) ? 'disabled' : '';
+
+    return `
+      <div class="equip-item">
+        <div class="equip-info">
+          <div><b>${up.name}</b> Lv.${lv}/${maxLv}</div>
+          <div style="font-size:11px;color:#666">${up.desc}</div>
+          <div style="font-size:11px;color:#666">
+            当前 ${currentCap}${!isMax ? ' → ' + nextCap : ''}
+          </div>
+        </div>
+        <div class="equip-action">
+          <div class="equip-price">${isMax ? '' : up.price + ' 金'}</div>
+          <button class="${btnCls}" ${(!canBuy || isMax) ? 'disabled' : ''}
+                  onclick="buyUpgrade('${up.id}')">
+            ${btnText}
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  showModal(`
+    <h3>🔧 设备交易所</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:12px">
+      升级设备，提升岗位承载力。客流超过承载力会造成营收损失。
+    </p>
+    ${listHTML}
+  `);
+  document.getElementById('modal-btn').textContent = '关闭';
+}
+
+function buyUpgrade(upgradeId) {
+  const up = STATION_UPGRADES.find(u => u.id === upgradeId);
+  if (!up) return;
+
+  const lv = state.stationUpgrades[up.station] || 0;
+  const maxLv = up.maxLv || 3;
+
+  if (lv >= maxLv) {
+    alert('这个设备已经满级了。');
+    return;
+  }
+  if (state.cash < up.price) {
+    alert('现金不足（需要 ' + up.price + '）。');
+    return;
+  }
+
+  state.cash -= up.price;
+  state.stationUpgrades[up.station] = lv + 1;
+
+  renderStatus();
+  openEquipExchange();
 }

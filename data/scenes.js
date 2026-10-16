@@ -79,3 +79,23 @@ const HOME_BOUNDS = {
   xMin: 12, xMax: 88,
   yMin: 55, yMax: 88,
 };
+
+// ============================================================
+//   岗位承载力（单人基础值）
+// ============================================================
+const STATION_CAPACITY = {
+  kitchen: 280,
+  wash: 350,
+  front: 400,
+};
+
+// ============================================================
+//   设备升级（商店街"设备交易所"购买）
+// ============================================================
+const STATION_UPGRADES = [
+  { id: 'stove',      station: 'kitchen', name: '灶台升级',  price: 30000, maxLv: 3, desc: '后厨承载力 +30%' },
+  { id: 'dishwasher', station: 'wash',    name: '洗碗机',    price: 20000, maxLv: 3, desc: '洗碗承载力 +30%' },
+  { id: 'pos',        station: 'front',   name: '收银系统',  price: 25000, maxLv: 3, desc: '前台承载力 +30%' },
+];
+// 设备交易所位置（商店街中下方）
+const EQUIP_EXCHANGE_POS = { x: 65, y: 23 };

@@ -203,6 +203,11 @@ function doSettle(restaurantOpen) {
   let repChange = 0;
   if (restaurantOpen) {
     repChange = (r.kitchenMul - 1.0) * CONFIG.repKitchenWeight - CONFIG.repDecay;
+
+    // 超载严重扣声誉
+    if (r.overloadRatio > 0.5) repChange -= 2;
+    else if (r.overloadRatio > 0.2) repChange -= 0.5;
+
     repChange = Math.round(repChange * 10) / 10;
     state.reputation += repChange;
     state.reputation = Math.max(0, Math.min(100, state.reputation));
@@ -405,6 +410,15 @@ function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEve
     eventLine = `<div class="ledger-row" style="color:${color}"><span>下周事件</span><span>${ev.name}（${ev.desc}）</span></div>`;
   }
 
+    // 超载提示
+  let overloadLine = '';
+  if (r.overloadRatio > 0) {
+    const pct = Math.round(r.overloadRatio * 100);
+    const penalty = Math.round(r.overloadPenalty * 100);
+    const cls = r.overloadRatio > 0.5 ? 'color:#d32f2f;font-weight:bold' : 'color:#ff9800';
+    overloadLine = `<div class="ledger-row" style="${cls}"><span>${r.overloadedStation}岗位超载${pct}%！</span><span>营收 -${penalty}%</span></div>`;
+  }
+
   let purchaseLine = '';
   if (state.purchaseWeeks >= CONFIG.purchaseGraceWeeks) {
     purchaseLine = `<div class="ledger-row" style="color:#d32f2f"><span>采购</span><span>断采！成本 &amp; 家庭开销 +100%</span></div>`;
@@ -474,6 +488,7 @@ function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEve
       <div class="ledger-row"><span>打工收入</span><span>+${Math.round(r.workIncome)}</span></div>
       ${musicLine}
       ${tempBonusLine}
+      ${overloadLine}
       ${purchaseLine}
       ${houseworkLine}
       ${ningetsuLine}

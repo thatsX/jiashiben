@@ -65,6 +65,7 @@ function resetGame() {
   state.achievements = [];
   state.totalRepaid = 0;
   state.earlyLoanWeek = null;
+  state.stationUpgrades = { kitchen: 0, wash: 0, front: 0 };
 
   stopBGM();
 

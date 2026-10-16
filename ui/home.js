@@ -88,6 +88,22 @@ function renderHome() {
   else if (rep >= 60) repDesc = '小有名气';
   else if (rep < 20) repDesc = '快倒闭了';
 
+    // 承载力
+  let capacityHTML = '';
+  if (canOperate && state.menu.length > 0) {
+    const preview = calculateBusiness(true);
+    const cap = preview.capBottleneck || 0;
+    const traffic = Math.round(preview.traffic);
+    const isOverload = preview.overloadRatio > 0;
+
+    capacityHTML = `
+      <div class="row" style="color:${isOverload ? '#d32f2f' : '#4caf50'}">
+        <span class="label">承载力</span>
+        <span class="value">${traffic}/${cap}${isOverload ? ' ⚠' : ''}</span>
+      </div>
+    `;
+  }
+
   // 季节事件显示
   let eventHTML = '';
   if (state.seasonalEvent && state.seasonalEvent.type !== 'none') {
@@ -118,6 +134,7 @@ function renderHome() {
         <div class="row"><span class="label">上周净利</span><span class="value">${state.lastProfit >= 0 ? '+' : ''}${state.lastProfit}</span></div>
         <div class="row ${purchaseClass}"><span class="label">采购</span><span class="value">${purchaseText}</span></div>
         <div class="row"><span class="label">音乐</span><span class="value">${musicName}</span></div>
+        ${capacityHTML}
         ${previewHTML}
         ${eventHTML}
       </div>
