@@ -233,6 +233,11 @@ function repayMicroLoan(idx) {
 //   开发者作弊面板
 // ============================================================
 function showDevPanel() {
+  // 生成好感度输入选项
+  const charOptions = characters.map(c => 
+    `<option value="${c.id}">${c.name} (当前: ${c.current.affinity})</option>`
+  ).join('');
+
   showModal(`
     <div style="text-align:center;padding:4px 0 12px">
       <div style="font-size:36px">🛠️</div>
@@ -241,6 +246,7 @@ function showDevPanel() {
     </div>
     
     <div class="shop-info" style="background:#f5f5f5;display:flex;flex-direction:column;gap:8px">
+      <!-- 快捷按钮 -->
       <button onclick="cheatAddCash()" style="background:#c8e6c9">💰 现金 + 100 万</button>
       <button onclick="cheatClearLoan()" style="background:#fff9c4">💳 清空主贷款</button>
       <button onclick="cheatClearMicro()" style="background:#fff9c4">💸 清空小额贷</button>
@@ -248,6 +254,40 @@ function showDevPanel() {
       <button onclick="cheatUnlockRecipes()" style="background:#e1bee7">📖 解锁所有菜谱</button>
       <button onclick="cheatSpawnBanquet()" style="background:#ffcc80">🎊 强行触发宴席</button>
       <button onclick="cheatAddReputation()" style="background:#f8bbd0">⭐ 声誉拉满 100</button>
+      <button onclick="cheatFullAffinity()" style="background:#ffcdd2">❤️ 全员好感拉满 100</button>
+      <button onclick="cheatAddMafiaRep()" style="background:#d7ccc8">🕶️ 极道声望 + 100</button>
+    </div>
+
+    <!-- 自定义修改 -->
+    <h4 style="margin-top:12px;font-size:13px;color:#d32f2f">自定义数值修改</h4>
+    <div class="shop-info" style="background:#fff;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:12px;width:60px">现金</span>
+        <input type="number" id="cheat-cash" class="repay-input" style="margin:0;flex:1;padding:6px" placeholder="当前: ${Math.round(state.cash)}">
+        <button style="padding:6px 12px;font-size:12px;background:#4caf50;color:white;border-color:#2e7d32" onclick="applyCheat('cash')">修改</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:12px;width:60px">贷款</span>
+        <input type="number" id="cheat-loan" class="repay-input" style="margin:0;flex:1;padding:6px" placeholder="当前: ${Math.round(state.loan)}">
+        <button style="padding:6px 12px;font-size:12px;background:#4caf50;color:white;border-color:#2e7d32" onclick="applyCheat('loan')">修改</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:12px;width:60px">周数</span>
+        <input type="number" id="cheat-week" class="repay-input" style="margin:0;flex:1;padding:6px" placeholder="当前: ${state.week}">
+        <button style="padding:6px 12px;font-size:12px;background:#4caf50;color:white;border-color:#2e7d32" onclick="applyCheat('week')">修改</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:12px;width:60px">极道声望</span>
+        <input type="number" id="cheat-mafia-rep" class="repay-input" style="margin:0;flex:1;padding:6px" placeholder="当前: ${state.mafiaRep || 0}">
+        <button style="padding:6px 12px;font-size:12px;background:#4caf50;color:white;border-color:#2e7d32" onclick="applyCheat('mafiaRep')">修改</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
+        <select id="cheat-char-id" style="flex:1;padding:6px;font-size:12px;border-radius:4px;border:1px solid #999">
+          ${charOptions}
+        </select>
+        <input type="number" id="cheat-affinity" class="repay-input" style="margin:0;flex:1;padding:6px" placeholder="好感度">
+        <button style="padding:6px 12px;font-size:12px;background:#4caf50;color:white;border-color:#2e7d32" onclick="applyCheat('affinity')">修改</button>
+      </div>
     </div>
 
     <button style="width:100%;margin-top:16px;background:#e0e0e0" onclick="openLoanModal()">返回还款</button>
@@ -255,37 +295,71 @@ function showDevPanel() {
   document.getElementById('modal-btn').style.display = 'none';
 }
 
-// 作弊功能实现
+// 自定义数值处理
+function applyCheat(type) {
+  if (type === 'cash') {
+    const val = parseInt(document.getElementById('cheat-cash').value, 10);
+    if (!isNaN(val)) { state.cash = val; renderStatus(); alert(`现金已修改为: ${val}`); showDevPanel(); }
+  } else if (type === 'loan') {
+    const val = parseInt(document.getElementById('cheat-loan').value, 10);
+    if (!isNaN(val)) { state.loan = val; renderStatus(); alert(`贷款已修改为: ${val}`); showDevPanel(); }
+  } else if (type === 'week') {
+    const val = parseInt(document.getElementById('cheat-week').value, 10);
+    if (!isNaN(val)) { state.week = val; renderStatus(); alert(`周数已修改为: 第 ${val} 周`); showDevPanel(); }
+  } else if (type === 'mafiaRep') {
+    const val = parseInt(document.getElementById('cheat-mafia-rep').value, 10);
+    if (!isNaN(val)) { state.mafiaRep = val; renderStatus(); alert(`极道声望已修改为: ${val}`); showDevPanel(); }
+  } else if (type === 'affinity') {
+    const charId = document.getElementById('cheat-char-id').value;
+    const val = parseInt(document.getElementById('cheat-affinity').value, 10);
+    const c = characters.find(x => x.id === charId);
+    if (c && !isNaN(val)) {
+      c.current.affinity = Math.max(0, Math.min(100, val));
+      alert(`${c.name} 的好感度已修改为: ${c.current.affinity}`);
+      showDevPanel();
+    }
+  }
+}
+
+// 快捷作弊功能
 function cheatAddCash() {
   state.cash += 1000000;
   renderStatus();
   alert('已增加 100 万现金');
+  showDevPanel();
 }
 
 function cheatClearLoan() {
   state.loan = 0;
   renderStatus();
   alert('主贷款已清零');
+  showDevPanel();
 }
 
 function cheatClearMicro() {
   state.microLoans = [];
   renderStatus();
   alert('小额贷款已清零');
+  showDevPanel();
 }
 
 function cheatFillEnergy() {
   characters.forEach(c => c.current.energy = c.traits.energyMax);
   renderStatus();
   alert('全员精力已回满');
+  showDevPanel();
 }
 
 function cheatUnlockRecipes() {
   RECIPES.forEach(r => {
-    if (state.learnedRecipes.indexOf(r.id) < 0) state.learnedRecipes.push(r.id);
-    if (r.premium && state.unlockedPremium.indexOf(r.id) < 0) state.unlockedPremium.push(r.id);
+    if (r.premium) {
+      if (state.unlockedPremium.indexOf(r.id) < 0) state.unlockedPremium.push(r.id);
+    } else {
+      if (state.learnedRecipes.indexOf(r.id) < 0) state.learnedRecipes.push(r.id);
+    }
   });
   alert('所有菜谱已解锁（含高级）');
+  showDevPanel();
 }
 
 function cheatSpawnBanquet() {
@@ -293,7 +367,108 @@ function cheatSpawnBanquet() {
     alert('当前已有宴席任务未完成！');
     return;
   }
-  // 强行塞一个等级3的豪门婚宴
+  state.banquet = {
+    level: 3, name: '豪门婚宴', requiredRecipeId: 'buddha', quote: 250000, penalty: 20000,
+    deadlineWeek: state.week + 3, prepAssignedChar: null, weeksLeft: 3, prepProgress: 0, isPrepDone: false     
+  };
+  alert('已强行触发【豪门婚宴】！请去首页查看筹备面板。');
+  showDevPanel();
+}
+
+function cheatAddReputation() {
+  state.reputation = 100;
+  renderStatus();
+  alert('声誉已拉满至 100');
+  showDevPanel();
+}
+
+function cheatFullAffinity() {
+  characters.forEach(c => c.current.affinity = 100);
+  alert('全员好感度已拉满至 100');
+  showDevPanel();
+}
+
+function cheatAddMafiaRep() {
+  state.mafiaRep = (state.mafiaRep || 0) + 100;
+  renderStatus();
+  alert(`极道声望 +100（当前: ${state.mafiaRep}）`);
+  showDevPanel();
+}
+
+function applyCheat(type) {
+  if (type === 'cash') {
+    const val = parseInt(document.getElementById('cheat-cash').value, 10);
+    if (!isNaN(val)) {
+      state.cash = val;
+      renderStatus();
+      alert(`现金已修改为: ${val}`);
+      showDevPanel();
+    }
+  } else if (type === 'loan') {
+    const val = parseInt(document.getElementById('cheat-loan').value, 10);
+    if (!isNaN(val)) {
+      state.loan = val;
+      renderStatus();
+      alert(`贷款已修改为: ${val}`);
+      showDevPanel();
+    }
+  } else if (type === 'week') {
+    const val = parseInt(document.getElementById('cheat-week').value, 10);
+    if (!isNaN(val)) {
+      state.week = val;
+      renderStatus();
+      alert(`周数已修改为: 第 ${val} 周`);
+      showDevPanel();
+    }
+  }
+}
+
+// 快捷作弊功能实现
+function cheatAddCash() {
+  state.cash += 1000000;
+  renderStatus();
+  alert('已增加 100 万现金');
+  showDevPanel();
+}
+
+function cheatClearLoan() {
+  state.loan = 0;
+  renderStatus();
+  alert('主贷款已清零');
+  showDevPanel();
+}
+
+function cheatClearMicro() {
+  state.microLoans = [];
+  renderStatus();
+  alert('小额贷款已清零');
+  showDevPanel();
+}
+
+function cheatFillEnergy() {
+  characters.forEach(c => c.current.energy = c.traits.energyMax);
+  renderStatus();
+  alert('全员精力已回满');
+  showDevPanel();
+}
+
+function cheatUnlockRecipes() {
+  RECIPES.forEach(r => {
+    if (r.premium) {
+      if (state.unlockedPremium.indexOf(r.id) < 0) state.unlockedPremium.push(r.id);
+    } else {
+      if (state.learnedRecipes.indexOf(r.id) < 0) state.learnedRecipes.push(r.id);
+    }
+  });
+  alert('所有菜谱已解锁（含高级）');
+  showDevPanel();
+}
+
+function cheatSpawnBanquet() {
+  if (state.banquet) {
+    alert('当前已有宴席任务未完成！');
+    return;
+  }
   state.banquet = {
     level: 3,
     name: '豪门婚宴',
@@ -303,14 +478,16 @@ function cheatSpawnBanquet() {
     deadlineWeek: state.week + 3,
     prepAssignedChar: null,
     weeksLeft: 3,
-    prepProgress: 0,
-    isPrepDone: false
+    prepProgress: 0,      
+    isPrepDone: false     
   };
   alert('已强行触发【豪门婚宴】！请去首页查看筹备面板。');
+  showDevPanel();
 }
 
 function cheatAddReputation() {
   state.reputation = 100;
   renderStatus();
   alert('声誉已拉满至 100');
+  showDevPanel();
 }

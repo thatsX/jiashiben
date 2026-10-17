@@ -1,11 +1,36 @@
+/* ============================================================
+   ui/ledger.js —— 账本页
+   ============================================================ */
+
 function renderLedger() {
   const el = document.getElementById('page-ledger');
+  const isMafia = state.isMafia;
+
+  // 根据是否极道线，改变标题
+  const title = isMafia ? '“账本”' : '账本';
+  
+  // 极道任务面板
+  let mafiaQuestHTML = '';
+  if (isMafia && typeof MAFIA_QUESTS !== 'undefined') {
+    const q = MAFIA_QUESTS[state.mafiaQuestIdx];
+    if (q) {
+      mafiaQuestHTML = `
+        <h3 style="margin-top:16px;color:#b8860b">当前极道任务</h3>
+        <div class="card" style="cursor:default;background:#222;border-color:#b8860b;color:#e0e0e0">
+          <div class="ledger-row"><span>任务名称</span><span style="color:#ffb300;font-weight:bold">${q.title}</span></div>
+          <div class="ledger-row"><span>任务目标</span><span>${q.desc}</span></div>
+          <div class="ledger-row"><span>任务进度</span><span>${q.current || 0} / ${q.target}</span></div>
+          <div class="ledger-row"><span>截止时间</span><span style="color:#ff5252">第 ${state.mafiaDeadline} 周</span></div>
+        </div>
+      `;
+    }
+  }
 
   const summary = `
     <div class="card" style="cursor:default">
       <div class="ledger-row"><span>现金</span><span>${Math.round(state.cash)}</span></div>
       <div class="ledger-row"><span>负债</span><span>${Math.round(state.loan)}</span></div>
-      <div class="ledger-row"><span>累计净利</span><span>${Math.round(state.totalProfit)}</span></div>
+      <div class="ledger-row"><span>${isMafia ? '极道声望' : '累计净利'}</span><span>${Math.round(isMafia ? state.mafiaRep : state.totalProfit)}</span></div>
       <div class="ledger-row"><span>破产次数</span><span>${state.bankruptCount}</span></div>
     </div>
   `;
@@ -23,22 +48,39 @@ function renderLedger() {
             <span>现金变化</span>
             <span>${r.cashChange >= 0 ? '+' : ''}${r.cashChange}</span>
           </div>
-          <div class="ledger-row" style="font-size:12px;color:#888">
-            <span>期末现金</span><span>${r.cashAfter}</span>
-          </div>
         </div>
       `).join('')
     : '<p style="color:#888;font-size:13px">还没有经营记录。</p>';
 
+  // 成就（只有日常线显示，或者极道线也可以显示）
+  const achieveHTML = ACHIEVEMENTS.map(a => {
+    const got = state.achievements.indexOf(a.id) >= 0;
+    return `
+      <div class="ledger-row" style="color:${got ? '#2e7d32' : '#999'}">
+        <span>${got ? '✅' : '⬜'} ${a.name}</span>
+        <span style="font-size:11px">${a.desc}</span>
+      </div>
+    `;
+  }).join('');
+
   el.innerHTML = `
-    <h3>账本</h3>
+    <h3>${title}</h3>
     ${summary}
-    <button style="width:100%;margin-top:8px;background:#ff8a80" onclick="confirmReset()">
+    
+    ${mafiaQuestHTML}
+    
+    <button style="width:100%;margin-top:12px;background:#ff8a80" onclick="confirmReset()">
       🔄 恢复默认状态重开
     </button>
     <button style="width:100%;margin-top:6px;background:#ffd54f" onclick="exportSave()">
       📤 导出存档密钥
     </button>
+
+    <h3 style="margin-top:16px">成就（${state.achievements.length}/${ACHIEVEMENTS.length}）</h3>
+    <div class="card" style="cursor:default">
+      ${achieveHTML}
+    </div>
+
     <h3 style="margin-top:16px">周记录</h3>
     ${recordsHTML}
   `;

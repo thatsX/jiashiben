@@ -44,12 +44,26 @@ function checkEnding() {
     });
     return;
   }
-  if (state.loan <= 0 && state.cash >= CONFIG.targetProfit) {
-    checkAchievements();
+
+  // 极道线特殊判定
+  if (state.isMafia) {
+    // 如果 4 个任务（0-3）全做完了，就进决战
+    if (state.mafiaQuestIdx >= MAFIA_QUESTS.length) {
+      startFinalBattle();
+      return;
+    }
+    // 否则继续日常经营
+    renderPage('home');
+    renderStatus();
+    return;
+  }
+
+  // 日常线原版判定
+  if (state.loan <= 0 && state.cash >= CONFIG.targetProfit) {  
+    // 正常结局
     if (state.week <= 52 && state.achievements.indexOf('week52') < 0) {
       state.achievements.push('week52');
     }
-
     playCutscene(SUCCESS_SCRIPT, () => {
       showEndingMenu();
     });
@@ -89,6 +103,15 @@ function resetGame() {
   state.researchProject = { recipeId: null, progress: 0, assignedChar: null };
   state.unlockedPremium = [];
   state.banquet = null;
+
+  state.isMafia = false;
+  state.mafiaRep = 0;
+  state.mafiaQuestIdx = 0;
+  state.mafiaEventDone = false;
+  state.mafiaDeadline = 0;
+  state.mafiaFailMsg = '';
+  state.betting = [];
+  document.getElementById('app').classList.remove('theme-mafia');
 
   stopBGM();
 

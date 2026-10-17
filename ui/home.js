@@ -116,7 +116,37 @@ function renderHome() {
   }
 
   let previewHTML = '';
-  if (canOperate && state.menu.length > 0) {
+  if (state.isMafia) {
+    const q = MAFIA_QUESTS[state.mafiaQuestIdx];
+    let taskProgressText = '';
+    let taskProgressColor = '#333';
+
+    if (q) {
+      if (q.type === 'cash') {
+        taskProgressText = `${Math.round(state.cash)} / ${q.target}`;
+        taskProgressColor = state.cash >= q.target ? '#4caf50' : '#d32f2f';
+      } else if (q.type === 'live_hold') {
+        // ★ 特殊处理 live_hold：显示声望进度 + Live状态
+        const liveText = q.liveDone ? '✅已举办' : '❌未举办';
+        const repText = `${state.mafiaRep} / ${q.target}`;
+        taskProgressText = `声望: ${repText} · Live: ${liveText}`;
+        taskProgressColor = (state.mafiaRep >= q.target && q.liveDone) ? '#4caf50' : '#d32f2f';
+      } else if (q.type === 'mafia_rep') {
+        taskProgressText = `${state.mafiaRep} / ${q.target}`;
+        taskProgressColor = state.mafiaRep >= q.target ? '#4caf50' : '#d32f2f';
+      } else {
+        taskProgressText = `${q.current || 0} / ${q.target}`;
+        taskProgressColor = (q.current || 0) >= q.target ? '#4caf50' : '#d32f2f';
+      }
+
+      previewHTML = `
+        <div class="row" style="color:#d32f2f;font-weight:bold"><span class="label">极道目标</span><span class="value">${q.title}</span></div>
+        <div class="row"><span class="label">任务进度</span><span class="value" style="color:${taskProgressColor}">${taskProgressText}</span></div>
+        ${q.type !== 'mafia_rep' && q.type !== 'live_hold' ? `<div class="row"><span class="label">极道声望</span><span class="value" style="color:#b8860b">${state.mafiaRep || 0}</span></div>` : ''}
+        <div class="row"><span class="label">截止周数</span><span class="value" style="color:${state.week >= state.mafiaDeadline - 1 ? '#ff9800' : '#333'}">第 ${state.mafiaDeadline} 周</span></div>
+      `;
+    }
+  } else if (canOperate && state.menu.length > 0) {
     const preview = calculateBusiness(true);
     previewHTML = `
       <div class="row"><span class="label">预计客流</span><span class="value">${Math.round(preview.traffic)}</span></div>
@@ -125,7 +155,8 @@ function renderHome() {
   } else {
     previewHTML = `<div class="row" style="color:#ff9800"><span class="label">餐馆</span><span class="value">未营业</span></div>`;
   }
-
+  
+  
   const musicPlaying = state.currentMusic !== 'none';
   const musicName = getMusicName();
 

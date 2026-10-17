@@ -52,6 +52,19 @@ let state = {
 
   // 宴席系统
   banquet: null,         // { level, requiredRecipeId, quote, deadlineWeek, prepAssignedChar }
+
+    // 极道系统
+  isMafia: false,
+  mafiaRep: 0,
+  mafiaQuestIdx: 0,
+  mafiaEventDone: false,
+  mafiaDeadline: 0,       // 当前极道任务的截止周数
+  mafiaFailMsg: '',       // 失败原因
+
+  // 地下拳场
+  betting: [],            // 押注记录：{ fighterId, amount }
+  weeklyBets: 0,          // 本周已押注次数
+  liveCooldown: 0,        // 地下Live冷却周数
   },
 };
 

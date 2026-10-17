@@ -115,6 +115,11 @@ function trySpawnBanquetCustomer() {
 
 function openBanquetDialog(customer) {
   const cfg = customer.banquetData;
+  // ★ 防崩溃兜底
+  if (!cfg) {
+    closeModal();
+    return;
+  }
   const stars = '⭐'.repeat(cfg.level);
   const recipe = RECIPES.find(x => x.id === cfg.recipe);
 

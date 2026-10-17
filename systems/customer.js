@@ -330,14 +330,18 @@ function applySingleEffect(e) {
           }
         }
       } else {
+        // ★ 修改这里：过滤掉 premium（高级菜谱）
         const pool = RECIPES.filter(r =>
+          !r.premium &&
           state.learnedRecipes.indexOf(r.id) < 0 &&
           state.pendingRecipes.indexOf(r.id) < 0
         );
         if (pool.length > 0) {
           const picked = pool[Math.floor(Math.random() * pool.length)];
           state.learnedRecipes.push(picked.id);
-          state.pendingRecipes.push(picked.id);
+          if (state.pendingRecipes.indexOf(picked.id) < 0) {
+            state.pendingRecipes.push(picked.id);
+          }
         }
       }
       break;
@@ -356,6 +360,28 @@ function applySingleEffect(e) {
 //   4. 概率 × 声誉加成
 // ============================================================
 function generateSpecialCustomers() {
+
+  if (state.isMafia) {
+    // 极道线只允许刷普通特殊客人（比如蓝毛贝斯手）
+    const repFactor = Math.max(0, Math.min(2, state.reputation / 50));
+    CUSTOMERS.filter(c => c.type === 'special' && c.id !== 'banquet_client' && c.id !== 'critic' && c.id !== 'zhulaoban').forEach(c => {
+      if (c.minWeek && state.week < c.minWeek) return;
+      if (c.once && state.seenCustomers.indexOf(c.id) >= 0) return;
+      if (state.customers.some(x => x.id === c.id)) return;
+
+      let chance = (typeof c.chance === 'number') ? c.chance : 1.0;
+      chance *= repFactor;
+      if (Math.random() > chance) return;
+
+      state.customers.push(createCustomerFromTemplate(c, true));
+      if (c.once && state.seenCustomers.indexOf(c.id) < 0) {
+        state.seenCustomers.push(c.id);
+      }
+    });
+    return; 
+  }
+
+
   const banquetCust = trySpawnBanquetCustomer();
   if (banquetCust) {
     state.customers.push(createCustomerFromTemplate(banquetCust, true));

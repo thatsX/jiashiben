@@ -1,10 +1,7 @@
 /* ============================================================
-   systems/settlement.js —— 每周结算
+   systems/settlement.js —— 每周结算（含极道线逻辑）
    ============================================================ */
 
-// ============================================================
-//   计算每个人完成当前任务的精力消耗
-// ============================================================
 function calcAllEnergyCosts() {
   const taskCount = {};
   characters.forEach(c => {
@@ -43,16 +40,14 @@ function calcAllEnergyCosts() {
 
 function getTaskDisplayName(c) {
   if (c.current.task === 'work') {
-    const shop = SHOPS.find(s => s.id === c.current.workShop);
+    let shop = SHOPS.find(s => s.id === c.current.workShop);
+    if (!shop && typeof MAFIA_SHOPS !== 'undefined') shop = MAFIA_SHOPS.find(s => s.id === c.current.workShop);
     return shop ? '打工·' + shop.name : '打工';
   }
   const t = TASKS.find(x => x.id === c.current.task);
   return t ? t.name : '无';
 }
 
-// ============================================================
-//   结算入口：先弹排班确认表
-// ============================================================
 function settle() {
   openScheduleConfirm();
 }
@@ -66,7 +61,6 @@ function openScheduleConfirm() {
     const taskName = getTaskDisplayName(c);
     const tired = isTired(c);
     const tiredTag = tired ? '<span class="tired-tag">疲惫</span>' : '';
-
     const rowCls = x.ok ? 'confirm-row' : 'confirm-row not-ok';
 
     return `
@@ -120,15 +114,7 @@ function confirmAndSettle() {
 
   if (!restaurantOpen) {
     if (state.banquet) {
-      const missing = [];
-      if (!hasKitchen) missing.push('后厨');
-      if (!hasWash) missing.push('洗碗');
-      if (!hasFront) missing.push('前台');
-      if (!hasMenu) missing.push('菜单选菜');
-      
-      // 阻止结算，并告诉玩家缺什么
-      alert(`⚠ 本周有宴席任务，必须正常营业！\n请去「家庭」页面排班，并在「菜单」选菜。\n当前缺少：${missing.join('、')}`);
-      return; // ★ 核心修复：直接返回，不许结算
+      alert('⚠ 本周有宴席任务！未安排人手营业，宴席将直接判定失败！');
     } else {
       showConfirm('本周餐馆未营业，要继续结算吗？', () => doSettle(false), () => {});
       return;
@@ -138,21 +124,40 @@ function confirmAndSettle() {
   doSettle(restaurantOpen);
 }
 
-// ============================================================
-//   正式结算
-// ============================================================
 function doSettle(restaurantOpen) {
   checkAchievements();
 
-  // ============ 处理到期的紧急小额贷 ============
+  let mafiaFailMsg = '';
+  let pendingMafiaCutscene = null;
+
+  if (state.isMafia && state.banquet) {
+    state.banquet = null;
+  }
+
+  // ============ 0. 第 15 周极道事件触发 ============
+  if (state.week === 15 && !state.mafiaEventDone && !state.isMafia) {
+    state.mafiaEventDone = true;
+    showModal(`
+      <div style="text-align:center;padding:10px 0">
+        <h3>⚠ 极道收保护费</h3>
+        <p style="margin-top:12px;font-size:14px;line-height:1.6">
+          两拨黑西装冲进店里。<br>“交 50000 保护费，不然明天砸了你的店！”
+        </p>
+      </div>
+      <button style="width:100%;margin-top:12px" onclick="closeModal(); state.cash-=50000; alert('第二天警察突袭了极道总部，把钱退给你了。'); doSettle(true);">交钱（-50000 金）</button>
+      <button style="width:100%;margin-top:8px;background:#ffcdd2" onclick="closeModal(); enterMafiaLine(); doSettle(true);">绝不妥协（进入极道线）</button>
+    `);
+    document.getElementById('modal-btn').style.display = 'none';
+    return;
+  }
+
+  // ============ 1. 处理到期的紧急小额贷 ============
   let microLoanDue = 0;
-  let microLoanInfo = '';
   if (state.microLoans && state.microLoans.length > 0) {
     const stillActive = [];
     state.microLoans.forEach(ml => {
       if (state.week >= ml.dueWeek) {
         microLoanDue += ml.repay;
-        microLoanInfo += `到期扣除 ${ml.repay} `;
       } else {
         stillActive.push(ml);
       }
@@ -161,7 +166,7 @@ function doSettle(restaurantOpen) {
     if (microLoanDue > 0) state.cash -= microLoanDue;
   }
 
-  // ============ 检查未对话的特殊客人 ============
+  // ============ 2. 检查未对话的特殊客人 ============
   const survivingGuests = [];
   state.customers.forEach(c => {
     if (c.type !== 'special' || c.talked) return;
@@ -177,7 +182,7 @@ function doSettle(restaurantOpen) {
   const custLayer = document.getElementById('layer-customers');
   if (custLayer) custLayer.innerHTML = '';
 
-  // ============ 采购追踪 ============
+  // ============ 3. 采购追踪 ============
   const buyers = characters.filter(c => c.current.task === 'buy' && !isExhausted(c));
   if (buyers.length > 0) {
     state.purchaseWeeks = 0;
@@ -187,7 +192,7 @@ function doSettle(restaurantOpen) {
     state.purchaseWeeks++;
   }
 
-  // ============ 宁月打工特殊事件 ============
+  // ============ 4. 宁月打工特殊事件 ============
   let ningetsuExtraMoney = 0;
   let ningetsuWantRecipe = false;
   let ningetsuEventType = null;
@@ -199,7 +204,8 @@ function doSettle(restaurantOpen) {
         ningetsuWantRecipe = true;
         ningetsuEventType = 'recipe';
       } else {
-        const shop = SHOPS.find(s => s.id === ningetsu.current.workShop);
+        let shop = SHOPS.find(s => s.id === ningetsu.current.workShop);
+        if (!shop) shop = MAFIA_SHOPS.find(s => s.id === ningetsu.current.workShop);
         if (shop) {
           ningetsuExtraMoney = shop.baseWage * getEffectiveWorkMultiplier(ningetsu);
           ningetsuEventType = 'money';
@@ -208,7 +214,60 @@ function doSettle(restaurantOpen) {
     }
   }
 
-  // ============ 判定是否为宴席周 ============
+  // ============ 5. 极道打工与任务推进 ============
+  let mafiaWorkCount = 0;
+  characters.forEach(c => {
+    if (c.current.task === 'work' && c.current.workShop) {
+      if (MAFIA_SHOPS.some(s => s.id === c.current.workShop)) {
+        mafiaWorkCount++;
+      }
+    }
+  });
+
+  if (state.isMafia) {
+    if (mafiaWorkCount > 0) {
+      state.mafiaRep += 5 * mafiaWorkCount; 
+      
+      const q = MAFIA_QUESTS[state.mafiaQuestIdx];
+      if (q && q.type === 'work_count') {
+        q.current = (q.current || 0) + mafiaWorkCount;
+      }
+    }
+
+    const q = MAFIA_QUESTS[state.mafiaQuestIdx];
+    if (q) {
+      // 同步进度
+      if (q.type === 'cash') q.current = state.cash;
+      if (q.type === 'live_hold') q.current = state.mafiaRep;
+
+      // ★ 1. 准确判断是否达标（如果是 live_hold，必须声望够且 liveDone 为 true）
+      const isTargetMet = (q.type === 'live_hold') 
+        ? (q.current >= q.target && q.liveDone === true) 
+        : (q.current >= q.target);
+
+      // ★ 2. 超时判定：只要没达标，超时了就失败
+      if (state.week >= state.mafiaDeadline && !isTargetMet) {
+        mafiaFailMsg = `任务【${q.title}】超时未完成，被极道扫地出门。`;
+      }
+      
+      // ★ 3. 推进判定：使用 isTargetMet 进行判断
+      if (isTargetMet && !mafiaFailMsg) {
+        const script = MAFIA_QUESTS_SCRIPTS[state.mafiaQuestIdx];
+        state.mafiaQuestIdx++;
+        
+        if (state.mafiaQuestIdx < MAFIA_QUESTS.length) {
+          const nextQ = MAFIA_QUESTS[state.mafiaQuestIdx];
+          state.mafiaDeadline = state.week + nextQ.deadlineAdd;
+        }
+
+        if (script) {
+          pendingMafiaCutscene = { lines: script };
+        }
+      }
+    }
+  }
+
+  // ============ 7. 判定是否为宴席周 ============
   let isBanquetWeek = false;
   if (state.banquet) {
     state.banquet.weeksLeft--;
@@ -217,7 +276,7 @@ function doSettle(restaurantOpen) {
     }
   }
 
-  // ============ 宴席筹备进度推进 ============
+  // ============ 8. 宴席筹备进度推进 ============
   let banquetPrepMsg = '';
   if (state.banquet && !state.banquet.isPrepDone && state.banquet.prepAssignedChar) {
     const prepChar = characters.find(c => c.id === state.banquet.prepAssignedChar);
@@ -234,10 +293,9 @@ function doSettle(restaurantOpen) {
     }
   }
 
-  // ============ 计算经营 ============
+  // ============ 9. 计算经营 ============
   let r = calculateBusiness(restaurantOpen);
   
-  // 如果是宴席周，覆盖日常营收为 0
   if (isBanquetWeek) {
     r.traffic = 0;
     r.unitPrice = 0;
@@ -262,7 +320,7 @@ function doSettle(restaurantOpen) {
   state.lastTraffic = Math.round(r.traffic);
   state.lastProfit = Math.round(r.profit);
 
-  // ============ 声誉变化 ============
+  // ============ 10. 声誉变化 ============
   let repChange = 0;
   if (restaurantOpen && !isBanquetWeek) {
     repChange = (r.kitchenMul - 1.0) * CONFIG.repKitchenWeight - CONFIG.repDecay;
@@ -276,12 +334,13 @@ function doSettle(restaurantOpen) {
 
   characters.forEach(c => { c.current.talkedThisWeek = false; });
 
-  // ============ 精力结算 ============
+  // ============ 11. 精力结算 ============
   characters.forEach(c => {
     if (c.current.task === 'rest') return;
 
     if (c.current.task === 'work') {
-      const shop = SHOPS.find(s => s.id === c.current.workShop);
+      let shop = SHOPS.find(s => s.id === c.current.workShop);
+      if (!shop) shop = MAFIA_SHOPS.find(s => s.id === c.current.workShop);
       const cost = shop ? shop.energyCost : 25;
       c.current.energy = Math.max(0, c.current.energy - cost);
     } else {
@@ -328,7 +387,7 @@ function doSettle(restaurantOpen) {
   });
   updateWorkPositions();
 
-  // ============ 宴席结算 ============
+  // ============ 12. 宴席结算 ============
   let banquetMsg = '';
   let banquetSuccess = false;
   if (isBanquetWeek) {
@@ -347,10 +406,10 @@ function doSettle(restaurantOpen) {
       banquetMsg = `💥 宴席搞砸了！条件未满足，赔付违约金 ${b.penalty} 金。`;
       banquetSuccess = false;
     }
-    state.banquet = null; // 结束
+    state.banquet = null; 
   }
 
-  // ============ 研发进度 ============
+  // ============ 13. 研发进度 ============
   const rProj = state.researchProject;
   if (rProj && rProj.recipeId && rProj.assignedChar) {
     const char = characters.find(c => c.id === rProj.assignedChar);
@@ -370,7 +429,7 @@ function doSettle(restaurantOpen) {
     }
   }
 
-  // ============ 店铺打工次数 + 新菜谱 ============
+  // ============ 14. 店铺打工次数 + 新菜谱 ============
   const shopsUsed = new Set();
   characters.forEach(c => {
     if (c.current.task === 'work' && c.current.workShop && !isExhausted(c)) shopsUsed.add(c.current.workShop);
@@ -392,6 +451,7 @@ function doSettle(restaurantOpen) {
 
   if (ningetsuWantRecipe) {
     const pool = RECIPES.filter(rec =>
+    !rec.premium &&
       state.learnedRecipes.indexOf(rec.id) < 0 &&
       newRecipes.indexOf(rec.id) < 0
     );
@@ -409,7 +469,7 @@ function doSettle(restaurantOpen) {
     state.pendingRecipes = [];
   }
 
-  // ============ 写账本 ============
+  // ============ 15. 写账本 ============
   state.ledger.push({
     week: settledWeek,
     revenue: Math.round(r.revenue),
@@ -422,9 +482,11 @@ function doSettle(restaurantOpen) {
     profit: Math.round(r.profit),
   });
 
+  state.seasonalEvent = rollSeasonalEvent();
   state.tempUnitPriceBonus = 0;
   state.tempTrafficBonus = 0;
-  state.seasonalEvent = rollSeasonalEvent();
+  state.weeklyBets = 0; // ★ 重置每周押注次数
+  if (state.liveCooldown > 0) state.liveCooldown--; // ★ 递减Live冷却
 
   spawnNormalCustomer();
   spawnNormalCustomer();
@@ -453,7 +515,9 @@ function doSettle(restaurantOpen) {
   const settleData = {
     week: settledWeek, r, script, repChange, restaurantOpen,
     ningetsuEventType, ningetsuExtraMoney, houseworkInfo,
-    survivingGuests, banquetMsg, banquetSuccess, banquetPrepMsg
+    survivingGuests, banquetMsg, banquetSuccess, banquetPrepMsg,
+    betResultMsg: '', // 即时结算，不使用此项
+    mafiaFailMsg, pendingMafiaCutscene // ★ 补上了
   };
 
   if (newRecipes.length > 0) {
@@ -469,25 +533,49 @@ function showSettlementDialogue(settleData) {
   const {
     week, r, script, repChange, restaurantOpen,
     ningetsuEventType, ningetsuExtraMoney, houseworkInfo,
-    survivingGuests, banquetMsg, banquetSuccess, banquetPrepMsg
+    survivingGuests, banquetMsg, banquetSuccess, banquetPrepMsg,
+    betResultMsg, mafiaFailMsg, pendingMafiaCutscene
   } = settleData;
 
   showModal(buildSettleHTML(
     week, r, script, repChange, restaurantOpen,
     ningetsuEventType, ningetsuExtraMoney, houseworkInfo,
-    survivingGuests, banquetMsg, banquetSuccess, banquetPrepMsg
+    survivingGuests, banquetMsg, banquetSuccess, banquetPrepMsg,
+    betResultMsg, mafiaFailMsg
   ));
 
-  document.getElementById('modal-btn').onclick = () => {
+    document.getElementById('modal-btn').onclick = () => {
     closeModal();
-    checkEnding();
+    
+    // 1. 如果极道任务失败了，直接切回日常
+    if (mafiaFailMsg) {
+      failMafiaLine(mafiaFailMsg);
+      return;
+    }
+    
+    // 2. 如果有极道任务的过场，先播过场
+    if (pendingMafiaCutscene) {
+      playCutscene(pendingMafiaCutscene, () => {
+        // 极道过场播完后，再去检查好感度
+        if (typeof triggerAfterSettlement === 'function') {
+          triggerAfterSettlement();
+        } else {
+          checkEnding();
+        }
+      });
+      return;
+    }
+
+    // 3. 没有极道过场，正常检查好感度
+    if (typeof triggerAfterSettlement === 'function') {
+      triggerAfterSettlement();
+    } else {
+      checkEnding();
+    }
   };
 }
 
-// ============================================================
-//   结算弹窗 HTML
-// ============================================================
-function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEventType, ningetsuExtraMoney, houseworkInfo, survivingGuests, banquetMsg, banquetSuccess, banquetPrepMsg) {
+function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEventType, ningetsuExtraMoney, houseworkInfo, survivingGuests, banquetMsg, banquetSuccess, banquetPrepMsg, betResultMsg, mafiaFailMsg) {
   
   let banquetLine = '';
   if (banquetMsg) {
@@ -504,6 +592,14 @@ function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEve
     </div>`;
   }
 
+  let mafiaFailLine = '';
+  if (mafiaFailMsg) {
+    mafiaFailLine = `<div class="ledger-row" style="color:#d32f2f;font-weight:bold;background:#ffebee;padding:6px;border-radius:4px;margin-bottom:6px;">
+      <span>⚠ 极道任务超时：${mafiaFailMsg}</span>
+    </div>`;
+  }
+
+  // ★ 补齐：下周季节事件
   let eventLine = '';
   if (state.seasonalEvent && state.seasonalEvent.type !== 'none') {
     const ev = state.seasonalEvent;
@@ -603,6 +699,7 @@ function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEve
     <div class="settle-top">
       <h3>第 ${week} 周 结算</h3>
       
+      ${mafiaFailLine}
       ${prepLine}
       ${banquetLine}
       
@@ -642,9 +739,6 @@ function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEve
   return topHTML + bottomHTML;
 }
 
-// ============================================================
-//   成就检查
-// ============================================================
 function checkAchievements() {
   const add = (id) => {
     if (state.achievements.indexOf(id) < 0) state.achievements.push(id);
