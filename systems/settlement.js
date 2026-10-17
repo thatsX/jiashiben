@@ -119,11 +119,23 @@ function confirmAndSettle() {
   const restaurantOpen = hasFront && hasKitchen && hasWash && hasMenu;
 
   if (!restaurantOpen) {
-    showConfirm('本周餐馆未营业，要继续结算吗？', () => doSettle(false), () => {});
-    return;
+    if (state.banquet) {
+      const missing = [];
+      if (!hasKitchen) missing.push('后厨');
+      if (!hasWash) missing.push('洗碗');
+      if (!hasFront) missing.push('前台');
+      if (!hasMenu) missing.push('菜单选菜');
+      
+      // 阻止结算，并告诉玩家缺什么
+      alert(`⚠ 本周有宴席任务，必须正常营业！\n请去「家庭」页面排班，并在「菜单」选菜。\n当前缺少：${missing.join('、')}`);
+      return; // ★ 核心修复：直接返回，不许结算
+    } else {
+      showConfirm('本周餐馆未营业，要继续结算吗？', () => doSettle(false), () => {});
+      return;
+    }
   }
 
-  doSettle(true);
+  doSettle(restaurantOpen);
 }
 
 // ============================================================
@@ -132,12 +144,27 @@ function confirmAndSettle() {
 function doSettle(restaurantOpen) {
   checkAchievements();
 
-  // ============ 检查未对话的特殊客人（必须在清空之前）============
+  // ============ 处理到期的紧急小额贷 ============
+  let microLoanDue = 0;
+  let microLoanInfo = '';
+  if (state.microLoans && state.microLoans.length > 0) {
+    const stillActive = [];
+    state.microLoans.forEach(ml => {
+      if (state.week >= ml.dueWeek) {
+        microLoanDue += ml.repay;
+        microLoanInfo += `到期扣除 ${ml.repay} `;
+      } else {
+        stillActive.push(ml);
+      }
+    });
+    state.microLoans = stillActive;
+    if (microLoanDue > 0) state.cash -= microLoanDue;
+  }
+
+  // ============ 检查未对话的特殊客人 ============
   const survivingGuests = [];
   state.customers.forEach(c => {
-    if (c.type !== 'special') return;
-    if (c.talked) return;
-
+    if (c.type !== 'special' || c.talked) return;
     const def = CUSTOMERS.find(x => x.id === c.id);
     if (def && def.onSurvive) {
       applyCustomerEffect(def.onSurvive.effect);
@@ -145,12 +172,7 @@ function doSettle(restaurantOpen) {
     }
   });
 
-  // ============ 记录上周来的特殊客人（阿农用）============
-  state.lastWeekSpecials = state.customers
-    .filter(c => c.type === 'special')
-    .map(c => c.id);
-
-  // ============ 清空所有客人 ============
+  state.lastWeekSpecials = state.customers.filter(c => c.type === 'special').map(c => c.id);
   state.customers = [];
   const custLayer = document.getElementById('layer-customers');
   if (custLayer) custLayer.innerHTML = '';
@@ -186,10 +208,51 @@ function doSettle(restaurantOpen) {
     }
   }
 
+  // ============ 判定是否为宴席周 ============
+  let isBanquetWeek = false;
+  if (state.banquet) {
+    state.banquet.weeksLeft--;
+    if (state.banquet.weeksLeft <= 0) {
+      isBanquetWeek = true;
+    }
+  }
+
+  // ============ 宴席筹备进度推进 ============
+  let banquetPrepMsg = '';
+  if (state.banquet && !state.banquet.isPrepDone && state.banquet.prepAssignedChar) {
+    const prepChar = characters.find(c => c.id === state.banquet.prepAssignedChar);
+    if (prepChar && !isExhausted(prepChar)) {
+      const rate = typeof getBanquetPrepRate === 'function' ? getBanquetPrepRate(prepChar.id) : 50;
+      state.banquet.prepProgress = Math.min(100, state.banquet.prepProgress + rate);
+      banquetPrepMsg = `【筹备】${prepChar.name}推进了 ${rate}% 进度（当前 ${state.banquet.prepProgress}%）。`;
+      
+      if (state.banquet.prepProgress >= 100) {
+        state.banquet.isPrepDone = true;
+      }
+    } else {
+      banquetPrepMsg = `【筹备】${prepChar.name}精力不足，本周筹备无进展。`;
+    }
+  }
+
   // ============ 计算经营 ============
-  const r = calculateBusiness(restaurantOpen);
-  r.cashChange += ningetsuExtraMoney;
-  r.workIncome += ningetsuExtraMoney;
+  let r = calculateBusiness(restaurantOpen);
+  
+  // 如果是宴席周，覆盖日常营收为 0
+  if (isBanquetWeek) {
+    r.traffic = 0;
+    r.unitPrice = 0;
+    r.revenue = 0;
+    r.foodCost = 0;
+    r.workIncome = 0;
+    r.profit = -r.fixedCost;
+    r.cashChange = -r.fixedCost - r.familyCost;
+    r.overloadRatio = 0;
+    r.overloadPenalty = 0;
+  } else {
+    r.cashChange += ningetsuExtraMoney;
+    r.workIncome += ningetsuExtraMoney;
+  }
+  r.microLoanDue = microLoanDue;
 
   state.cash += r.cashChange;
   state.totalProfit += r.profit;
@@ -201,10 +264,8 @@ function doSettle(restaurantOpen) {
 
   // ============ 声誉变化 ============
   let repChange = 0;
-  if (restaurantOpen) {
+  if (restaurantOpen && !isBanquetWeek) {
     repChange = (r.kitchenMul - 1.0) * CONFIG.repKitchenWeight - CONFIG.repDecay;
-
-    // 超载严重扣声誉
     if (r.overloadRatio > 0.5) repChange -= 2;
     else if (r.overloadRatio > 0.2) repChange -= 0.5;
 
@@ -213,14 +274,9 @@ function doSettle(restaurantOpen) {
     state.reputation = Math.max(0, Math.min(100, state.reputation));
   }
 
-  // ============ 重置对话状态 ============
   characters.forEach(c => { c.current.talkedThisWeek = false; });
 
-  // ============================================================
-  //   精力结算
-  // ============================================================
-
-  // 1. 工作扣精力
+  // ============ 精力结算 ============
   characters.forEach(c => {
     if (c.current.task === 'rest') return;
 
@@ -238,18 +294,15 @@ function doSettle(restaurantOpen) {
     }
   });
 
-  // 2. 休息回精力
   characters.forEach(c => {
     if (c.current.task === 'rest') {
       c.current.energy = Math.min(c.traits.energyMax, c.current.energy + c.traits.recovery);
     }
   });
 
-  // 3. 判断心玖是否有精力做家务
   const kokono = characters.find(c => c.id === 'kokono');
   const kokonoHasEnergy = kokono && kokono.current.energy > 0;
 
-  // 4. 结算家务
   let houseworkInfo = null;
   if (kokono) {
     if (kokonoHasEnergy) {
@@ -266,17 +319,56 @@ function doSettle(restaurantOpen) {
     }
   }
 
-  // 5. 筋疲力尽强制休息
   characters.forEach(c => {
     if (c.current.energy <= 0) {
-      if (c.current.task === 'work') {
-        c.current.workShop = null;
-      }
+      if (c.current.task === 'work') c.current.workShop = null;
       c.current.task = 'rest';
       assignHomeInitialPosition(c);
     }
   });
   updateWorkPositions();
+
+  // ============ 宴席结算 ============
+  let banquetMsg = '';
+  let banquetSuccess = false;
+  if (isBanquetWeek) {
+    const b = state.banquet;
+    const isRecipeUnlocked = state.unlockedPremium.indexOf(b.requiredRecipeId) >= 0;
+    const allHealthy = characters.every(c => c.current.energy >= 20);
+
+    if (isRecipeUnlocked && b.isPrepDone && allHealthy && restaurantOpen) {
+      const tip = Math.floor(b.quote * (0.1 + Math.random() * 0.1));
+      const income = b.quote + tip;
+      state.cash += income;
+      banquetMsg = `🎊 宴席圆满成功！获得报价 ${b.quote} + 小费 ${tip}，共 ${income} 金！`;
+      banquetSuccess = true;
+    } else {
+      state.cash -= b.penalty;
+      banquetMsg = `💥 宴席搞砸了！条件未满足，赔付违约金 ${b.penalty} 金。`;
+      banquetSuccess = false;
+    }
+    state.banquet = null; // 结束
+  }
+
+  // ============ 研发进度 ============
+  const rProj = state.researchProject;
+  if (rProj && rProj.recipeId && rProj.assignedChar) {
+    const char = characters.find(c => c.id === rProj.assignedChar);
+    if (char && !isExhausted(char)) {
+      let add = 10;
+      if (char.id === 'kokono') add = 40;
+      else if (char.id === 'leye') add = 25;
+      rProj.progress += add;
+
+      const target = RECIPES.find(x => x.id === rProj.recipeId);
+      const maxP = target.id === 'buddha' ? 200 : (target.id === 'manhan' ? 150 : 100);
+      if (rProj.progress >= maxP) {
+        state.unlockedPremium.push(target.id);
+        alert(`🎉 研发成功！解锁高级菜谱【${target.name}】`);
+        state.researchProject = { recipeId: null, progress: 0, assignedChar: null };
+      }
+    }
+  }
 
   // ============ 店铺打工次数 + 新菜谱 ============
   const shopsUsed = new Set();
@@ -298,7 +390,6 @@ function doSettle(restaurantOpen) {
     });
   });
 
-  // 宁月菜谱事件
   if (ningetsuWantRecipe) {
     const pool = RECIPES.filter(rec =>
       state.learnedRecipes.indexOf(rec.id) < 0 &&
@@ -311,7 +402,6 @@ function doSettle(restaurantOpen) {
     }
   }
 
-  // 客人赠送的菜谱
   if (state.pendingRecipes && state.pendingRecipes.length > 0) {
     state.pendingRecipes.forEach(rid => {
       if (newRecipes.indexOf(rid) < 0) newRecipes.push(rid);
@@ -332,28 +422,24 @@ function doSettle(restaurantOpen) {
     profit: Math.round(r.profit),
   });
 
-  // ============ 清空本周临时加成 ============
   state.tempUnitPriceBonus = 0;
   state.tempTrafficBonus = 0;
-
-  // ============ 刷新下周季节事件 ============
   state.seasonalEvent = rollSeasonalEvent();
 
-  // ============ 进入新一周：刷新客人 ============
   spawnNormalCustomer();
   spawnNormalCustomer();
   generateSpecialCustomers();
 
-  // ============ 结算剧本 ============
   let script;
-  if (!restaurantOpen) {
+  if (isBanquetWeek) {
+    script = [{ text: banquetSuccess ? '宴席大获成功！' : '宴席办砸了……' }];
+  } else if (!restaurantOpen) {
     script = [{ text: '本周餐馆未营业。' }];
   } else if (r.profit > 20000) script = STORY.settlement.big;
   else if (r.profit > 0) script = STORY.settlement.small;
   else if (r.profit > -5000) script = STORY.settlement.slightLoss;
   else script = STORY.settlement.bigLoss;
 
-    // 精疲力竭优先，其次疲惫
   const exhaustedChar = characters.find(c => isExhausted(c));
   if (exhaustedChar && STORY.exhausted && STORY.exhausted[exhaustedChar.id]) {
     script = script.concat([{ text: '———' }], STORY.exhausted[exhaustedChar.id]);
@@ -367,7 +453,7 @@ function doSettle(restaurantOpen) {
   const settleData = {
     week: settledWeek, r, script, repChange, restaurantOpen,
     ningetsuEventType, ningetsuExtraMoney, houseworkInfo,
-    survivingGuests,
+    survivingGuests, banquetMsg, banquetSuccess, banquetPrepMsg
   };
 
   if (newRecipes.length > 0) {
@@ -383,13 +469,13 @@ function showSettlementDialogue(settleData) {
   const {
     week, r, script, repChange, restaurantOpen,
     ningetsuEventType, ningetsuExtraMoney, houseworkInfo,
-    survivingGuests,
+    survivingGuests, banquetMsg, banquetSuccess, banquetPrepMsg
   } = settleData;
 
   showModal(buildSettleHTML(
     week, r, script, repChange, restaurantOpen,
     ningetsuEventType, ningetsuExtraMoney, houseworkInfo,
-    survivingGuests
+    survivingGuests, banquetMsg, banquetSuccess, banquetPrepMsg
   ));
 
   document.getElementById('modal-btn').onclick = () => {
@@ -401,8 +487,23 @@ function showSettlementDialogue(settleData) {
 // ============================================================
 //   结算弹窗 HTML
 // ============================================================
-function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEventType, ningetsuExtraMoney, houseworkInfo, survivingGuests) {
-  // 季节事件
+function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEventType, ningetsuExtraMoney, houseworkInfo, survivingGuests, banquetMsg, banquetSuccess, banquetPrepMsg) {
+  
+  let banquetLine = '';
+  if (banquetMsg) {
+    const color = banquetSuccess ? '#2e7d32' : '#d32f2f';
+    banquetLine = `<div class="ledger-row" style="color:${color};font-weight:bold;background:${banquetSuccess?'#e8f5e9':'#ffebee'};padding:6px;border-radius:4px;margin-bottom:6px;">
+      <span>${banquetMsg}</span>
+    </div>`;
+  }
+
+  let prepLine = '';
+  if (banquetPrepMsg) {
+    prepLine = `<div class="ledger-row" style="color:#e65100;font-weight:bold;background:#fff3e0;padding:6px;border-radius:4px;margin-bottom:6px;">
+      <span>${banquetPrepMsg}</span>
+    </div>`;
+  }
+
   let eventLine = '';
   if (state.seasonalEvent && state.seasonalEvent.type !== 'none') {
     const ev = state.seasonalEvent;
@@ -410,13 +511,19 @@ function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEve
     eventLine = `<div class="ledger-row" style="color:${color}"><span>下周事件</span><span>${ev.name}（${ev.desc}）</span></div>`;
   }
 
-    // 超载提示
   let overloadLine = '';
   if (r.overloadRatio > 0) {
     const pct = Math.round(r.overloadRatio * 100);
     const penalty = Math.round(r.overloadPenalty * 100);
     const cls = r.overloadRatio > 0.5 ? 'color:#d32f2f;font-weight:bold' : 'color:#ff9800';
     overloadLine = `<div class="ledger-row" style="${cls}"><span>${r.overloadedStation}岗位超载${pct}%！</span><span>营收 -${penalty}%</span></div>`;
+  }
+
+  let microLoanLine = '';
+  if (r.microLoanDue > 0) {
+    microLoanLine = `<div class="ledger-row" style="color:#d32f2f;font-weight:bold;background:#ffebee;padding:4px;border-radius:4px">
+      <span>⚠ 小额贷到期扣除</span><span>-${r.microLoanDue}</span>
+    </div>`;
   }
 
   let purchaseLine = '';
@@ -451,12 +558,12 @@ function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEve
 
   const musicMul = getMusicMultiplier();
   let musicLine = '';
-  if (musicMul > 1.0 && restaurantOpen) {
+  if (musicMul > 1.0 && restaurantOpen && !banquetMsg) {
     musicLine = `<div class="ledger-row" style="color:#1976d2"><span>音乐</span><span>${getMusicName()} 客流 ×${musicMul.toFixed(2)}</span></div>`;
   }
 
   let tempBonusLine = '';
-  if (restaurantOpen) {
+  if (restaurantOpen && !banquetMsg) {
     const tTraffic = r.tempTraffic || 0;
     const tPrice = r.unitPriceBonus || 0;
     if (tTraffic !== 0) {
@@ -467,7 +574,6 @@ function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEve
     }
   }
 
-  // 未对话的特殊客人
   let survivingLine = '';
   if (survivingGuests && survivingGuests.length > 0) {
     survivingGuests.forEach(text => {
@@ -475,23 +581,41 @@ function buildSettleHTML(week, r, script, repChange, restaurantOpen, ningetsuEve
     });
   }
 
-  const topHTML = `
-    <div class="settle-top">
-      <h3>第 ${week} 周 结算</h3>
-      ${!restaurantOpen ? `<div style="color:#ff9800;font-size:12px;margin-bottom:6px">⚠ 本周餐馆未营业，只结算固定支出与打工收入</div>` : ''}
+  let normalLedgerHTML = '';
+  if (banquetMsg && banquetSuccess) {
+    normalLedgerHTML = `
+      <div class="ledger-row" style="color:#888"><span>日常营业</span><span>暂停（举办宴席）</span></div>
+      <div class="ledger-row"><span>店铺固定</span><span>-${Math.round(r.fixedCost)}</span></div>
+      <div class="ledger-row"><span>家庭开销</span><span>-${Math.round(r.familyCost)}</span></div>
+    `;
+  } else {
+    normalLedgerHTML = `
       <div class="ledger-row"><span>客流</span><span>${Math.round(r.traffic)}</span></div>
-      <div class="ledger-row"><span>客单价</span><span>${r.unitPrice.toFixed(2)}</span></div>
       <div class="ledger-row"><span>营业额</span><span>${Math.round(r.revenue)}</span></div>
       <div class="ledger-row"><span>食材成本</span><span>-${Math.round(r.foodCost)}</span></div>
       <div class="ledger-row"><span>店铺固定</span><span>-${Math.round(r.fixedCost)}</span></div>
       <div class="ledger-row"><span>家庭开销</span><span>-${Math.round(r.familyCost)}</span></div>
       <div class="ledger-row"><span>打工收入</span><span>+${Math.round(r.workIncome)}</span></div>
+    `;
+  }
+
+  const topHTML = `
+    <div class="settle-top">
+      <h3>第 ${week} 周 结算</h3>
+      
+      ${prepLine}
+      ${banquetLine}
+      
+      ${!restaurantOpen && !banquetMsg ? `<div style="color:#ff9800;font-size:12px;margin-bottom:6px">⚠ 本周餐馆未营业，只结算固定支出与打工收入</div>` : ''}
+      
+      ${normalLedgerHTML}
       ${musicLine}
       ${tempBonusLine}
       ${overloadLine}
       ${purchaseLine}
       ${houseworkLine}
       ${ningetsuLine}
+      ${microLoanLine}
       ${survivingLine}
       ${eventLine}
       <div class="ledger-row total">

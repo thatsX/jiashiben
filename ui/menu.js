@@ -1,7 +1,11 @@
+/* ============================================================
+   ui/menu.js —— 菜单页
+   ============================================================ */
+
 function renderMenu() {
   const el = document.getElementById('page-menu');
 
-  const avail = getAvailableRecipes();
+  const avail = getAvailableRecipes(); // 根据后厨角色获取可做的普通菜
   const menuSet = new Set(state.menu);
 
   const kitchenChars = characters.filter(c => c.current.task === 'kitchen');
@@ -13,7 +17,8 @@ function renderMenu() {
   const affordable = menuCost <= state.cash;
   const costCls = affordable ? '' : 'color:#d32f2f;font-weight:bold';
 
-  const listHTML = RECIPES.map(r => {
+  // ★ 注意：这里加了 .filter(r => !r.premium)，把高级菜踢出日常菜单
+  const listHTML = RECIPES.filter(r => !r.premium).map(r => {
     const canMake = avail.indexOf(r.id) >= 0;
     const inMenu = menuSet.has(r.id);
     const cls = canMake ? (inMenu ? 'recipe-item selected' : 'recipe-item') : 'recipe-item disabled';
@@ -32,6 +37,9 @@ function renderMenu() {
     `;
   }).join('');
 
+  // ★ 调用研发面板（来自 systems/banquet.js）
+  const researchHTML = typeof renderResearchPanel === 'function' ? renderResearchPanel() : '';
+
   el.innerHTML = `
     <h3>本周菜单</h3>
     <div class="card" style="cursor:default">
@@ -42,12 +50,13 @@ function renderMenu() {
 
     <h3 style="margin-top:12px">可选菜谱</h3>
     ${listHTML}
+
+    ${researchHTML}
   `;
 }
 
 function toggleMenu(recipeId) {
   const idx = state.menu.indexOf(recipeId);
-
   if (idx >= 0) {
     state.menu.splice(idx, 1);
     renderMenu();

@@ -85,6 +85,10 @@ function resetGame() {
   state.totalRepaid = 0;
   state.earlyLoanWeek = null;
   state.stationUpgrades = { kitchen: 0, wash: 0, front: 0 };
+  state.microLoans = [];
+  state.researchProject = { recipeId: null, progress: 0, assignedChar: null };
+  state.unlockedPremium = [];
+  state.banquet = null;
 
   stopBGM();
 

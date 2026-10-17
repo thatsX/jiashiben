@@ -135,6 +135,11 @@ function talkToCustomerByUid(uid) {
   const c = state.customers.find(x => x.uid === uid);
   if (!c) return;
 
+  if (c.id === 'banquet_client') {
+    openBanquetDialog(c);
+    return;
+  }
+
   if (c.talked) {
     showModal('<p style="text-align:center;color:#888">她已经吃完了。</p>');
     return;
@@ -351,6 +356,12 @@ function applySingleEffect(e) {
 //   4. 概率 × 声誉加成
 // ============================================================
 function generateSpecialCustomers() {
+  const banquetCust = trySpawnBanquetCustomer();
+  if (banquetCust) {
+    state.customers.push(createCustomerFromTemplate(banquetCust, true));
+    return; // 有宴席就不刷其他特殊客人了
+  }
+
   const repFactor = Math.max(0, Math.min(2, state.reputation / 50));
 
   CUSTOMERS.filter(c => c.type === 'special').forEach(c => {

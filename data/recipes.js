@@ -14,4 +14,12 @@ const RECIPES = [
   { id: 'egg',        name: '煎蛋',     category: '小菜', cost: 2, price: 6,  appeal: 3, quality: 2 },
   { id: 'salad',      name: '沙拉',     category: '小菜', cost: 4, price: 12, appeal: 5, quality: 3 },
   { id: 'vegPlatter', name: '蔬菜拼盘', category: '小菜', cost: 6, price: 18, appeal: 7, quality: 4 },
+
+  // ============================================================
+  //  高级宴席菜谱（平时不上菜单，研发解锁后用于宴席）
+  // ============================================================
+  { id: 'squirrel_fish', name: '松鼠鳜鱼', category: '主菜', cost: 30, price: 80, appeal: 12, quality: 5, premium: true },
+  { id: 'manhan',        name: '满汉全席', category: '主菜', cost: 60, price: 180, appeal: 20, quality: 5, premium: true },
+  { id: 'buddha',        name: '佛跳墙',   category: '主菜', cost: 100, price: 300, appeal: 30, quality: 5, premium: true },
 ];
+

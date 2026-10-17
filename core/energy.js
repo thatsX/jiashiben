@@ -18,6 +18,10 @@ function getEffectivePositionBonus(c, taskId) {
       v = v * 0.7;
     }
   }
+  // ★ 研发/宴席筹备的惩罚
+  if (isCharBusyWithProject(c.id)) {
+    v *= 0.7;
+  }
   return v;
 }
 
@@ -25,5 +29,16 @@ function getEffectivePositionBonus(c, taskId) {
 function getEffectiveWorkMultiplier(c) {
   let v = c.traits.workMultiplier;
   if (isTired(c)) v *= 0.7;
+  // ★ 研发/宴席筹备的惩罚
+  if (isCharBusyWithProject(c.id)) {
+    v *= 0.7;
+  }
   return v;
+}
+
+// 辅助函数：该角色是否在研发/筹备宴席
+function isCharBusyWithProject(charId) {
+  if (state.researchProject.assignedChar === charId) return true;
+  if (state.banquet && state.banquet.prepAssignedChar === charId) return true;
+  return false;
 }

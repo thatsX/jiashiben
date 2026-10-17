@@ -1,3 +1,7 @@
+/* ============================================================
+   ui/home.js —— 首页渲染
+   ============================================================ */
+
 function renderHome() {
   const el = document.getElementById('page-home');
 
@@ -26,7 +30,6 @@ function renderHome() {
   ).join('');
 
   // 岗位台
-    // 后区台子（灶台 + 洗碗槽）：在角色下方
   const backStationsHTML = ['kitchen', 'wash'].map(stationId => {
     const spot = STATION_SPOTS[stationId];
     const imgSrc = spot.img || '';
@@ -88,7 +91,7 @@ function renderHome() {
   else if (rep >= 60) repDesc = '小有名气';
   else if (rep < 20) repDesc = '快倒闭了';
 
-    // 承载力
+  // 承载力
   let capacityHTML = '';
   if (canOperate && state.menu.length > 0) {
     const preview = calculateBusiness(true);
@@ -126,6 +129,54 @@ function renderHome() {
   const musicPlaying = state.currentMusic !== 'none';
   const musicName = getMusicName();
 
+  // ============ 宴席追踪面板 ============
+  let banquetTrackerHTML = '';
+  if (state.banquet) {
+    const b = state.banquet;
+    const isUnlocked = state.unlockedPremium.indexOf(b.requiredRecipeId) >= 0;
+    const recipe = RECIPES.find(x => x.id === b.requiredRecipeId);
+    
+    // 生成指派下拉框
+    const charOptions = characters.map(c => 
+      `<option value="${c.id}" ${b.prepAssignedChar === c.id ? 'selected' : ''}>${c.name}（进度+${getBanquetPrepRate(c.id)}%）</option>`
+    ).join('');
+
+    const progressColor = b.isPrepDone ? '#4caf50' : '#ff9800';
+
+    banquetTrackerHTML = `
+      <div class="card" style="cursor:default;background:#fff3e0;border-color:#ff9800;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <b>🎊 ${b.name}筹备中</b>
+          <span style="color:#d32f2f;font-weight:bold">剩 ${b.weeksLeft} 周</span>
+        </div>
+        
+        <div class="ledger-row"><span>1. 解锁 ${recipe.name}</span><span>${isUnlocked ? '✅' : '❌ 未解锁'}</span></div>
+        
+        <div style="margin-top:8px; margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:2px;">
+            <span>2. 筹备进度</span>
+            <span style="color:${progressColor};font-weight:bold;">${b.prepProgress}% ${b.isPrepDone ? '✅' : ''}</span>
+          </div>
+          <div class="energy-bar" style="height:8px;background:#eee;border-radius:4px;overflow:hidden;">
+            <div style="width:${b.prepProgress}%;height:100%;background:${progressColor};transition:width 0.3s;"></div>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px; font-size:12px; margin-top:6px;">
+          <span>指派筹备：</span>
+          <select onchange="changeBanquetPrep(this.value)" style="padding:4px;font-size:12px" ${b.isPrepDone ? 'disabled' : ''}>
+            <option value="">（未指派）</option>
+            ${charOptions}
+          </select>
+        </div>
+        <p style="font-size:11px;color:#888;margin-top:6px">筹备人员本周工作效率会下降 30%</p>
+        
+        <div class="ledger-row" style="margin-top:6px"><span>3. 宴席当周全员精力≥20</span><span>（结算时判定）</span></div>
+      </div>
+    `;
+  }
+
+  // ============ 渲染 ============
   el.innerHTML = `
     <div id="scene-restaurant">
       <div class="scene-status-panel">
@@ -161,9 +212,14 @@ function renderHome() {
 
       ${!canOperate ? `<div class="scene-empty">还缺：${missing.join(' / ')}<br>去「家庭」页排班吧</div>` : ''}
     </div>
+    
+    <div style="padding: 10px 12px 0 12px;">
+      ${banquetTrackerHTML}
+    </div>
+
     <div class="home-bottom-bar">
       <button class="settle-btn" onclick="settle()">
-        ${canOperate && state.menu.length > 0 ? '营业结算' : '结算（餐馆未营业）'}
+        ${state.banquet && state.banquet.weeksLeft === 1 ? '🎊 举办宴席结算' : (canOperate && state.menu.length > 0 ? '营业结算' : '结算（餐馆未营业）')}
       </button>
     </div>
   `;
@@ -193,4 +249,12 @@ function renderWorkCharsDOM() {
       </div>
     `;
   }).join('');
+}
+
+// 辅助函数：指派宴席筹备人员
+function changeBanquetPrep(charId) {
+  if (state.banquet) {
+    state.banquet.prepAssignedChar = charId || null;
+    renderHome(); // 刷新UI
+  }
 }

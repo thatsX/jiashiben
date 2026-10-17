@@ -39,6 +39,19 @@ let state = {
   kitchen: 0,
   wash: 0,
   front: 0,
+
+  microLoans: [],
+
+    // 研发系统
+  researchProject: {
+    recipeId: null,      // 正在研发的菜谱 id
+    progress: 0,         // 当前进度 0-100/150/200
+    assignedChar: null,  // 指派的角色 id
+  },
+  unlockedPremium: [],   // 已解锁的高级菜谱 id 数组
+
+  // 宴席系统
+  banquet: null,         // { level, requiredRecipeId, quote, deadlineWeek, prepAssignedChar }
   },
 };
 
