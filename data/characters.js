@@ -37,9 +37,9 @@ const CHARACTERS = [
 ];
 
 const TALENT = {
-  leye:     '采购、前台、宣传',
-  kokono:   '后厨、家务、照顾人',
-  housaki:  '洗碗、会计、线上宣传',
-  chisato:  '打工、宣传、采购',
-  ningetsu: '学习、人脉',
+  leye:     '采购、前台',
+  kokono:   '后厨、采购、家务',
+  housaki:  '洗碗、家里蹲',
+  chisato:  '打工、采购',
+  ningetsu: '成长学习、意外收获',
 };
