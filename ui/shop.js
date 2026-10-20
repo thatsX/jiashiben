@@ -76,7 +76,10 @@ function renderShop() {
   `;
 }
 
-// 黑道打工弹窗
+// 商店打工弹窗
+// ============================================================
+//   商店打工弹窗（完整版）
+// ============================================================
 function openShop(shopId) {
   let shop = SHOPS.find(s => s.id === shopId);
   if (!shop) shop = MAFIA_SHOPS.find(s => s.id === shopId);
@@ -85,41 +88,78 @@ function openShop(shopId) {
   const isMafiaShop = MAFIA_SHOPS.some(s => s.id === shopId);
   const workingHere = characters.filter(c => c.current.task === 'work' && c.current.workShop === shopId);
   
-  // 极道店铺限制宁月
+  // 候选角色（休息状态、未筋疲力尽、且没在别处打工）
   const candidates = characters.filter(c => {
     if (c.current.task !== 'rest') return false;
     if (!c.traits.canWork) return false;
     if (isExhausted(c)) return false;
     if (c.current.workShop) return false;
-    // 极道店铺：宁月不能去
-    if (isMafiaShop && c.id === 'ningetsu') return false;
     return true;
   });
 
-  const workerHTML = candidates.length > 0
-    ? candidates.map(c => `
-        <div class="worker-option" onclick="toggleWorker('${shopId}','${c.id}')">
-          ${avatarHTML(c.id, 'chars', 36)}
-          <div class="worker-info">
-            <div><b>${c.name}</b></div>
-            <div style="font-size:11px;color:#666">精力 ${Math.round(c.current.energy)} · 倍率 ${getEffectiveWorkMultiplier(c).toFixed(1)}x</div>
-          </div>
+  // 1. 渲染菜谱解锁列表
+  let recipesHTML = '';
+  if (shop.recipes && shop.recipes.length > 0) {
+    recipesHTML = shop.recipes.map((rid, i) => {
+      const r = RECIPES.find(x => x.id === rid);
+      const need = shop.unlockAt[i];
+      const unlocked = shop.workCount >= need;
+      const cls = unlocked ? 'recipe-unlock unlocked' : 'recipe-unlock';
+      return `
+        <div class="${cls}">
+          <span>${r ? r.name : rid}</span>
+          <span>${unlocked ? '已解锁' : `打工 ${need} 次（${shop.workCount}/${need}）`}</span>
         </div>
-      `).join('')
-    : '<p style="color:#888;font-size:12px">没有可用角色。</p>';
+      `;
+    }).join('');
+  } else if (isMafiaShop) {
+    recipesHTML = '<p style="font-size:12px;color:#888;text-align:center;padding:4px">极道店铺不提供菜谱，但提供高额报酬与声望。</p>';
+  }
 
+  // 2. 渲染候选人
+  const workerHTML = candidates.length > 0
+    ? candidates.map(c => {
+        const isNingetsu = c.traits.needEscort;
+        // 宁月必须有人陪
+        const blockByEscort = isNingetsu && workingHere.length === 0;
+        const cls = blockByEscort ? 'worker-option disabled' : 'worker-option';
+        const click = blockByEscort ? '' : `onclick="toggleWorker('${shopId}','${c.id}')"`;
+        const hint = blockByEscort ? '<span style="color:#c62828;font-size:11px">需要有人陪</span>' : '';
+        const tiredTag = isTired(c) ? '<span class="tired-tag">疲惫</span>' : '';
+
+        return `
+          <div class="${cls}" ${click}>
+            ${avatarHTML(c.id, 'chars', 36)}
+            <div class="worker-info">
+              <div><b>${c.name}</b> ${hint} ${tiredTag}</div>
+              <div style="font-size:11px;color:#666">
+                精力 ${Math.round(c.current.energy)}/${c.traits.energyMax}
+                · 倍率 ${getEffectiveWorkMultiplier(c).toFixed(1)}x
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')
+    : '<p style="color:#888;font-size:12px">没有可以打工的角色（需要处于休息状态、未筋疲力尽）。</p>';
+
+  // 3. 渲染已选打工者
   const selectedHTML = workingHere.length > 0
     ? workingHere.map(c => `
         <div class="worker-option selected" onclick="toggleWorker('${shopId}','${c.id}')">
           ${avatarHTML(c.id, 'chars', 36)}
           <div class="worker-info">
             <div><b>${c.name}</b> <span style="color:#4caf50;font-size:11px">✔ 打工中</span></div>
+            <div style="font-size:11px;color:#666">
+              精力 ${Math.round(c.current.energy)}/${c.traits.energyMax}
+              · 倍率 ${getEffectiveWorkMultiplier(c).toFixed(1)}x
+            </div>
           </div>
         </div>
       `).join('')
     : '';
 
-  // 极道店铺显示声望
+  // 4. 计算预计收入与极道声望
+  const income = workingHere.reduce((s, c) => s + shop.baseWage * getEffectiveWorkMultiplier(c), 0);
   const repInfo = isMafiaShop ? `<div class="ledger-row"><span>极道声望</span><span style="color:#b8860b">+15 / 人</span></div>` : '';
 
   showModal(`
@@ -127,11 +167,20 @@ function openShop(shopId) {
     <div class="shop-info">
       <div class="ledger-row"><span>基础工资</span><span>${shop.baseWage}</span></div>
       <div class="ledger-row"><span>精力消耗</span><span>${shop.energyCost}</span></div>
+      <div class="ledger-row"><span>累计打工</span><span>${shop.workCount} 次</span></div>
       ${repInfo}
     </div>
+
+    <h4 style="margin-top:12px">可获得菜谱</h4>
+    ${recipesHTML}
+
     <h4 style="margin-top:12px">选择打工者</h4>
     ${selectedHTML}
     ${workerHTML}
+
+    <div class="income-preview">
+      预计收入：<b>${Math.round(income)}</b>
+    </div>
   `);
   document.getElementById('modal-btn').textContent = '关闭';
 }
@@ -140,16 +189,41 @@ function toggleWorker(shopId, charId) {
   const c = characters.find(x => x.id === charId);
   if (!c) return;
 
-  if (c.current.task === 'work' && c.current.workShop === shopId) {
+  const isWorkingHere = c.current.task === 'work' && c.current.workShop === shopId;
+
+  if (isWorkingHere) {
+    // 取消打工
     c.current.task = 'rest';
     c.current.workShop = null;
     assignHomeInitialPosition(c);
+
+    // 宁月联动取消
+    const workingHere = characters.filter(x => x.current.task === 'work' && x.current.workShop === shopId);
+    const nonNingetsu = workingHere.filter(x => !x.traits.needEscort);
+    
+    if (nonNingetsu.length === 0) {
+      workingHere.forEach(x => {
+        if (x.traits.needEscort) {
+          x.current.task = 'rest';
+          x.current.workShop = null;
+          assignHomeInitialPosition(x);
+        }
+      });
+    }
   } else {
+    // 准备去打工
+    if (isExhausted(c)) return;
+
+    if (c.traits.needEscort) {
+      const workingHere = characters.filter(x => x.current.task === 'work' && x.current.workShop === shopId);
+      if (workingHere.length === 0) return;
+    }
+
     c.current.task = 'work';
     c.current.workShop = shopId;
     c.current.position = { x: -20, y: 60 };
     
-    // 极道打工推进
+    // 极道打工推进任务
     const isMafiaShop = MAFIA_SHOPS.some(s => s.id === shopId);
     if (isMafiaShop && state.isMafia) {
       const q = MAFIA_QUESTS[state.mafiaQuestIdx];
@@ -158,6 +232,7 @@ function toggleWorker(shopId, charId) {
       }
     }
   }
+  
   openShop(shopId);
 }
 

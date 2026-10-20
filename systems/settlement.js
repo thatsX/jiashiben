@@ -56,6 +56,14 @@ function openScheduleConfirm() {
   const info = calcAllEnergyCosts();
   const allOk = info.every(x => x.ok);
 
+  // 原有营业状态检查
+  const hasFront = characters.some(c => c.current.task === 'front' && !isExhausted(c));
+  const hasKitchen = characters.some(c => c.current.task === 'kitchen' && !isExhausted(c));
+  const hasWash = characters.some(c => c.current.task === 'wash' && !isExhausted(c));
+  const hasMenu = state.menu.length > 0;
+  const restaurantOpen = hasFront && hasKitchen && hasWash && hasMenu;
+
+  // 构建人物列表
   const rowsHTML = info.map(x => {
     const c = x.c;
     const taskName = getTaskDisplayName(c);
@@ -78,17 +86,38 @@ function openScheduleConfirm() {
     `;
   }).join('');
 
-  const warnHTML = !allOk
+  // 原有的精力不足警告
+  let warnHTML = !allOk
     ? '<p style="color:#d32f2f;text-align:center;font-weight:bold;margin-top:10px">⚠ 有角色精力不足，无法确认。请返回修改排班。</p>'
     : '';
+
+  // ★ 新增：宴席未营业警告
+  let banquetWarnHTML = '';
+  if (state.banquet && !restaurantOpen) {
+    const missing = [];
+    if (!hasKitchen) missing.push('后厨');
+    if (!hasWash) missing.push('洗碗');
+    if (!hasFront) missing.push('前台');
+    if (!hasMenu) missing.push('菜单选菜');
+    
+    banquetWarnHTML = `
+      <div style="color:#d32f2f;font-weight:bold;margin-bottom:12px;padding:10px;background:#ffebee;border:2px solid #ffcdd2;border-radius:6px;text-align:left;font-size:13px;line-height:1.5;">
+        ⚠️ 本周有【${state.banquet.name}】宴席任务！<br>
+        但餐馆目前未营业（缺少：<b>${missing.join('、')}</b>）。<br>
+        如果坚持结算，<b>宴席将直接判定失败并扣除违约金</b>。
+      </div>
+    `;
+  }
 
   showModal(`
     <h3>📋 排班确认</h3>
     <p style="font-size:12px;color:#666;margin-bottom:12px">
       确认本周排班。精力不足的角色无法安排工作。
     </p>
+    ${banquetWarnHTML}
     ${rowsHTML}
     ${warnHTML}
+    
     <button id="schedule-confirm-btn"
             style="width:100%;margin-top:12px"
             ${!allOk ? 'disabled' : ''}
@@ -114,13 +143,20 @@ function confirmAndSettle() {
 
   if (!restaurantOpen) {
     if (state.banquet) {
-      alert('⚠ 本周有宴席任务！未安排人手营业，宴席将直接判定失败！');
+      // 宴席未营业：二次确认，明确告知会扣除违约金
+      showConfirm('⚠️ 本周有宴席任务，但餐馆未营业。\n继续结算将判定宴席失败并扣除违约金！\n确定要继续吗？', 
+        () => doSettle(false), 
+        () => {} // 取消则什么都不做，留在当前页面
+      );
+      return;
     } else {
+      // 没宴席也没营业：原有的确认逻辑
       showConfirm('本周餐馆未营业，要继续结算吗？', () => doSettle(false), () => {});
       return;
     }
   }
 
+  // 正常营业
   doSettle(restaurantOpen);
 }
 

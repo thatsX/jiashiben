@@ -17,10 +17,8 @@ function findAvailableChair() {
 function createCustomerFromTemplate(template, isSpecial) {
   const uid = 'c' + Date.now() + Math.random().toString(36).slice(2, 7);
   return {
+    ...template, // ★ 核心修复：一键继承所有属性（包括 banquetData）
     uid,
-    id: template.id,
-    name: template.name,
-    type: template.type,
     isSpecial: !!isSpecial,
     phase: 'entering',
     chairId: null,
@@ -137,6 +135,22 @@ function talkToCustomerByUid(uid) {
 
   if (c.id === 'banquet_client') {
     openBanquetDialog(c);
+    return;
+  }
+
+    if (c.id === 'big_hand') {
+    c.talked = true;
+    showModal(`
+      <div style="text-align:center;padding:10px 0">
+        ${avatarHTML(c.id, 'customers', 64)}
+        <h3 style="margin-top:6px">${c.name}</h3>
+        <div class="talk-bubble" style="background:#fff7e6;margin-top:12px">
+          <p>“听说你们的 live house 被夺走了，笑容都去哪里了？让我帮你们拿回 live house 找回笑容吧！”</p>
+        </div>
+      </div>
+      <button class="dialogue-choice" onclick="triggerBigHandCollision('${c.uid}')">欸？</button>
+    `);
+    document.getElementById('modal-btn').style.display = 'none';
     return;
   }
 
@@ -415,3 +429,75 @@ function generateSpecialCustomers() {
     }
   });
 }
+
+// ============================================================
+//   神秘大手撞车事件与后续
+// ============================================================
+window.triggerBigHandCollision = function(uid) {
+  closeModal();
+  
+  const c = state.customers.find(x => x.uid === uid);
+  if (!c) return;
+  
+  const targetNode = document.querySelector(`[data-cust-id="${uid}"]`);
+  let targetX = 50, targetY = 70;
+  if (targetNode) {
+    targetX = parseFloat(targetNode.style.left);
+    targetY = parseFloat(targetNode.style.top);
+  }
+
+  let startX = (targetX < 50) ? 120 : -20;
+
+  const otona = document.createElement('div');
+  otona.className = 'sprite customer-sprite';
+  // ★ 用 fixed 定位直接挂载到 body，逃离 DOM 定时清理！
+  otona.style.position = 'fixed'; 
+  otona.style.left = startX + '%'; 
+  otona.style.top = targetY + '%';
+  otona.style.transition = 'none';
+  otona.style.zIndex = '9999';
+  
+  otona.innerHTML = `
+    <div class="head-bubble">不可以，我还怎么捞黑流！</div>
+    <img src="assets/customers/sbgd.png" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+    <div class="sprite-fallback"><div class="fb-head"></div><div class="fb-body"></div></div>
+    <div class="sprite-label">十本光大</div>
+  `;
+  
+  // 挂载到整个页面，而不是客人的图层里
+  document.body.appendChild(otona);
+
+  void otona.offsetWidth;
+  otona.style.transition = 'left 1.5s cubic-bezier(0.6, 0, 0.9, 1)';
+  otona.style.left = targetX + '%'; 
+
+  setTimeout(() => {
+    const flash = document.createElement('div');
+    flash.className = 'screen-flash';
+    document.body.appendChild(flash);
+
+    if (targetNode) targetNode.remove();
+    otona.remove();
+    c.phase = 'gone'; 
+
+    setTimeout(() => {
+      flash.remove();
+      showModal(`
+        <div style="text-align:center;padding:20px 0">
+          <h2 style="color:#333;font-size:28px;letter-spacing:4px;">啊咧？</h2>
+        </div>
+        <button class="dialogue-choice" onclick="receiveBigHandMoney()">
+          收下神秘大手留下的 5000 块钱救济金（？）
+        </button>
+      `);
+      document.getElementById('modal-btn').style.display = 'none';
+    }, 1000);
+
+  }, 1500);
+};
+
+window.receiveBigHandMoney = function() {
+  closeModal();
+  state.cash += 5000;
+  renderStatus();
+};
