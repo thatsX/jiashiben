@@ -180,7 +180,7 @@ function doSettle(restaurantOpen) {
           两拨黑西装冲进店里。<br>“交 50000 保护费，不然明天砸了你的店！”
         </p>
       </div>
-      <button style="width:100%;margin-top:12px" onclick="closeModal(); state.cash-=50000; alert('第二天警察突袭了极道总部，把钱退给你了。'); doSettle(true);">交钱（-50000 金）</button>
+      <button style="width:100%;margin-top:12px" onclick="closeModal(); state.cash-=50000; state.mafiaBribePending = true; alert('破财消灾。黑西装拿了钱，大摇大摆地走了。'); doSettle(true);">交钱（-50000 金）</button>
       <button style="width:100%;margin-top:8px;background:#ffcdd2" onclick="closeModal(); enterMafiaLine(); doSettle(true);">绝不妥协（进入极道线）</button>
     `);
     document.getElementById('modal-btn').style.display = 'none';
@@ -589,6 +589,29 @@ function showSettlementDialogue(settleData) {
       return;
     }
     
+    // 1.5. 警察退保护费事件
+    if (state.mafiaBribePending) {
+      state.cash += 50000;
+      state.mafiaBribePending = false;
+      renderStatus();
+      
+      showModal(`
+        <div style="text-align:center;padding:20px 0">
+          <div style="font-size:40px">🚓</div>
+          <h3 style="margin-top:10px;color:#1976d2">警察突袭</h3>
+          <p style="margin-top:12px;font-size:14px;line-height:1.6">
+            昨天那两拨黑西装被警察端了！<br>作为赃款，那 50000 金被原封不动地退还到了账上。
+          </p>
+        </div>
+      `);
+      document.getElementById('modal-btn').onclick = () => {
+        closeModal();
+        checkEnding();
+      };
+      document.getElementById('modal-btn').textContent = '太好了！';
+      return;
+    }
+
     // 2. 如果有极道任务的过场，先播过场
     if (pendingMafiaCutscene) {
       playCutscene(pendingMafiaCutscene, () => {

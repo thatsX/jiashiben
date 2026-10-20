@@ -104,6 +104,7 @@ function resetGame() {
   state.unlockedPremium = [];
   state.banquet = null;
 
+  state.mafiaBribePending = false;
   state.isMafia = false;
   state.mafiaRep = 0;
   state.mafiaQuestIdx = 0;

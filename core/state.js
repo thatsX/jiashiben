@@ -41,6 +41,7 @@ let state = {
   front: 0,
 
   microLoans: [],
+  mafiaBribePending: false, // 是否等待警察退还保护费
 
     // 研发系统
   researchProject: {

@@ -255,7 +255,7 @@ const CUSTOMERS = [
     type: 'special',
     minWeek: 4,
     once: true,
-    chance: 1.0,
+    chance: 0.1,
   },
   {
     id: 'sbgd',
