@@ -446,54 +446,78 @@ window.triggerBigHandCollision = function(uid) {
     targetY = parseFloat(targetNode.style.top);
   }
 
-  let startX = (targetX < 50) ? 120 : -20;
+  // ★ 出现在客人入口处（稍微往上提一点 y，确保在手机屏幕上能看清整个人）
+  const startX = CUSTOMER_ENTRY.x; 
+  const startY = 85; 
 
   const otona = document.createElement('div');
   otona.className = 'sprite customer-sprite';
-  // ★ 用 fixed 定位直接挂载到 body，逃离 DOM 定时清理！
-  otona.style.position = 'fixed'; 
+  otona.style.position = 'absolute'; 
   otona.style.left = startX + '%'; 
-  otona.style.top = targetY + '%';
+  otona.style.top = startY + '%';
   otona.style.transition = 'none';
   otona.style.zIndex = '9999';
   
   otona.innerHTML = `
-    <div class="head-bubble">不可以，我还怎么捞黑流！</div>
+    <div class="head-bubble" style="min-width:150px; text-align:left;"></div>
     <img src="assets/customers/sbgd.png" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
     <div class="sprite-fallback"><div class="fb-head"></div><div class="fb-body"></div></div>
     <div class="sprite-label">十本光大</div>
   `;
   
-  // 挂载到整个页面，而不是客人的图层里
-  document.body.appendChild(otona);
+  const scene = document.getElementById('scene-restaurant');
+  if (scene) scene.appendChild(otona);
 
-  void otona.offsetWidth;
-  otona.style.transition = 'left 1.5s cubic-bezier(0.6, 0, 0.9, 1)';
-  otona.style.left = targetX + '%'; 
+  const bubble = otona.querySelector('.head-bubble');
+  const fullText = "不可以，我还怎么捞黑流！";
+  let charIdx = 0;
 
-  setTimeout(() => {
-    const flash = document.createElement('div');
-    flash.className = 'screen-flash';
-    document.body.appendChild(flash);
+  // ★ 打字机效果：一字一顿地喊出来
+  const typeTimer = setInterval(() => {
+    if (charIdx < fullText.length) {
+      bubble.textContent += fullText[charIdx];
+      charIdx++;
+    } else {
+      clearInterval(typeTimer);
+      
+      // ★ 喊完之后，停顿 0.5 秒开始冲刺
+      setTimeout(() => {
+        // 计算冲刺加速度
+        otona.style.transition = 'left 0.6s cubic-bezier(0.6, 0, 0.9, 1), top 0.6s cubic-bezier(0.6, 0, 0.9, 1)';
+        otona.style.left = targetX + '%'; 
+        otona.style.top = targetY + '%'; 
 
-    if (targetNode) targetNode.remove();
-    otona.remove();
-    c.phase = 'gone'; 
+        // 冲刺 0.6 秒后碰撞
+        setTimeout(() => {
+          // 全屏白光
+          const flash = document.createElement('div');
+          flash.className = 'screen-flash';
+          document.body.appendChild(flash);
 
-    setTimeout(() => {
-      flash.remove();
-      showModal(`
-        <div style="text-align:center;padding:20px 0">
-          <h2 style="color:#333;font-size:28px;letter-spacing:4px;">啊咧？</h2>
-        </div>
-        <button class="dialogue-choice" onclick="receiveBigHandMoney()">
-          收下神秘大手留下的 5000 块钱救济金（？）
-        </button>
-      `);
-      document.getElementById('modal-btn').style.display = 'none';
-    }, 1000);
+          // 两人消失
+          if (targetNode) targetNode.remove();
+          otona.remove();
+          c.phase = 'gone'; 
 
-  }, 1500);
+          // 白光闪烁 1 秒后，弹出“啊咧？”
+          setTimeout(() => {
+            flash.remove();
+            showModal(`
+              <div style="text-align:center;padding:20px 0">
+                <h2 style="color:#333;font-size:28px;letter-spacing:4px;">啊咧？</h2>
+              </div>
+              <button class="dialogue-choice" onclick="receiveBigHandMoney()">
+                收下神秘大手留下的 5000 块钱救济金（？）
+              </button>
+            `);
+            document.getElementById('modal-btn').style.display = 'none';
+          }, 1000);
+
+        }, 600);
+
+      }, 500);
+    }
+  }, 120); // 每 120 毫秒蹦出一个字
 };
 
 window.receiveBigHandMoney = function() {
