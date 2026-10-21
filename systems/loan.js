@@ -296,105 +296,9 @@ function showDevPanel() {
 }
 
 // 自定义数值处理
-function applyCheat(type) {
-  if (type === 'cash') {
-    const val = parseInt(document.getElementById('cheat-cash').value, 10);
-    if (!isNaN(val)) { state.cash = val; renderStatus(); alert(`现金已修改为: ${val}`); showDevPanel(); }
-  } else if (type === 'loan') {
-    const val = parseInt(document.getElementById('cheat-loan').value, 10);
-    if (!isNaN(val)) { state.loan = val; renderStatus(); alert(`贷款已修改为: ${val}`); showDevPanel(); }
-  } else if (type === 'week') {
-    const val = parseInt(document.getElementById('cheat-week').value, 10);
-    if (!isNaN(val)) { state.week = val; renderStatus(); alert(`周数已修改为: 第 ${val} 周`); showDevPanel(); }
-  } else if (type === 'mafiaRep') {
-    const val = parseInt(document.getElementById('cheat-mafia-rep').value, 10);
-    if (!isNaN(val)) { state.mafiaRep = val; renderStatus(); alert(`极道声望已修改为: ${val}`); showDevPanel(); }
-  } else if (type === 'affinity') {
-    const charId = document.getElementById('cheat-char-id').value;
-    const val = parseInt(document.getElementById('cheat-affinity').value, 10);
-    const c = characters.find(x => x.id === charId);
-    if (c && !isNaN(val)) {
-      c.current.affinity = Math.max(0, Math.min(100, val));
-      alert(`${c.name} 的好感度已修改为: ${c.current.affinity}`);
-      showDevPanel();
-    }
-  }
-}
-
-// 快捷作弊功能
-function cheatAddCash() {
-  state.cash += 1000000;
-  renderStatus();
-  alert('已增加 100 万现金');
-  showDevPanel();
-}
-
-function cheatClearLoan() {
-  state.loan = 0;
-  renderStatus();
-  alert('主贷款已清零');
-  showDevPanel();
-}
-
-function cheatClearMicro() {
-  state.microLoans = [];
-  renderStatus();
-  alert('小额贷款已清零');
-  showDevPanel();
-}
-
-function cheatFillEnergy() {
-  characters.forEach(c => c.current.energy = c.traits.energyMax);
-  renderStatus();
-  alert('全员精力已回满');
-  showDevPanel();
-}
-
-function cheatUnlockRecipes() {
-  RECIPES.forEach(r => {
-    if (r.premium) {
-      if (state.unlockedPremium.indexOf(r.id) < 0) state.unlockedPremium.push(r.id);
-    } else {
-      if (state.learnedRecipes.indexOf(r.id) < 0) state.learnedRecipes.push(r.id);
-    }
-  });
-  alert('所有菜谱已解锁（含高级）');
-  showDevPanel();
-}
-
-function cheatSpawnBanquet() {
-  if (state.banquet) {
-    alert('当前已有宴席任务未完成！');
-    return;
-  }
-  state.banquet = {
-    level: 3, name: '豪门婚宴', requiredRecipeId: 'buddha', quote: 250000, penalty: 20000,
-    deadlineWeek: state.week + 3, prepAssignedChar: null, weeksLeft: 3, prepProgress: 0, isPrepDone: false     
-  };
-  alert('已强行触发【豪门婚宴】！请去首页查看筹备面板。');
-  showDevPanel();
-}
-
-function cheatAddReputation() {
-  state.reputation = 100;
-  renderStatus();
-  alert('声誉已拉满至 100');
-  showDevPanel();
-}
-
-function cheatFullAffinity() {
-  characters.forEach(c => c.current.affinity = 100);
-  alert('全员好感度已拉满至 100');
-  showDevPanel();
-}
-
-function cheatAddMafiaRep() {
-  state.mafiaRep = (state.mafiaRep || 0) + 100;
-  renderStatus();
-  alert(`极道声望 +100（当前: ${state.mafiaRep}）`);
-  showDevPanel();
-}
-
+// ============================================================
+//   自定义数值处理（作弊）
+// ============================================================
 function applyCheat(type) {
   if (type === 'cash') {
     const val = parseInt(document.getElementById('cheat-cash').value, 10);
@@ -404,7 +308,8 @@ function applyCheat(type) {
       alert(`现金已修改为: ${val}`);
       showDevPanel();
     }
-  } else if (type === 'loan') {
+  } 
+  else if (type === 'loan') {
     const val = parseInt(document.getElementById('cheat-loan').value, 10);
     if (!isNaN(val)) {
       state.loan = val;
@@ -412,7 +317,8 @@ function applyCheat(type) {
       alert(`贷款已修改为: ${val}`);
       showDevPanel();
     }
-  } else if (type === 'week') {
+  } 
+  else if (type === 'week') {
     const val = parseInt(document.getElementById('cheat-week').value, 10);
     if (!isNaN(val)) {
       state.week = val;
@@ -420,10 +326,41 @@ function applyCheat(type) {
       alert(`周数已修改为: 第 ${val} 周`);
       showDevPanel();
     }
+  } 
+  else if (type === 'mafiaRep') {
+    const val = parseInt(document.getElementById('cheat-mafia-rep').value, 10);
+    if (!isNaN(val)) {
+      state.mafiaRep = val;
+      renderStatus();
+      alert(`极道声望已修改为: ${val}`);
+      showDevPanel();
+    }
+  } 
+  else if (type === 'affinity') {
+    const charId = document.getElementById('cheat-char-id').value;
+    const rawVal = document.getElementById('cheat-affinity').value;
+    const val = parseInt(rawVal, 10);
+
+    if (rawVal === '' || isNaN(val)) {
+      alert('请输入有效的好感度数字！');
+      return;
+    }
+
+    const c = characters.find(x => x.id === charId);
+    if (c) {
+      // ★ 修复：这里是 val，不是 Math.val，也没有 100 的上限了
+      c.current.affinity = Math.max(0, val); 
+      alert(`${c.name} 的好感度已修改为: ${c.current.affinity}`);
+      showDevPanel(); 
+    } else {
+      alert('未找到该角色，id可能异常: ' + charId);
+    }
   }
 }
 
-// 快捷作弊功能实现
+// ============================================================
+//   快捷作弊功能
+// ============================================================
 function cheatAddCash() {
   state.cash += 1000000;
   renderStatus();
@@ -489,5 +426,18 @@ function cheatAddReputation() {
   state.reputation = 100;
   renderStatus();
   alert('声誉已拉满至 100');
+  showDevPanel();
+}
+
+function cheatFullAffinity() {
+  characters.forEach(c => c.current.affinity = 100);
+  alert('全员好感度已拉满至 100');
+  showDevPanel();
+}
+
+function cheatAddMafiaRep() {
+  state.mafiaRep = (state.mafiaRep || 0) + 100;
+  renderStatus();
+  alert(`极道声望 +100（当前: ${state.mafiaRep}）`);
   showDevPanel();
 }

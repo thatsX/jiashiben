@@ -549,29 +549,42 @@
 /* ============================================================
    好感度剧情（旧版，暂留）
    ============================================================ */
+/* ============================================================
+   好感度剧情：双立绘系统
+   ============================================================ */
+/* ============================================================
+   好感度剧情：双立绘推拉系统
+   ============================================================ */
 .affinity-scene {
   display: flex;
   justify-content: center;
+  align-items: flex-end; /* 让立绘底部对齐 */
+  gap: 20px; /* 两人之间的间距 */
   margin-bottom: 12px;
+  height: 260px; /* 固定大框高度 */
+  position: relative;
 }
 
 .affinity-portrait {
-  width: 180px;
-  height: 220px;
-  background: #eee;
-  border: 3px solid #333;
-  border-radius: 12px;
+  width: 160px;
+  height: 240px;
   display: flex;
-  align-items: center;
+  align-items: flex-end; /* 底部贴合 */
   justify-content: center;
-  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), filter 0.3s;
+  /* 去掉边框和背景 */
+  background: transparent;
+  border: none;
 }
+
 .affinity-portrait img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  transform-origin: bottom center; /* 以脚底为原点缩放 */
   display: block;
 }
+
 .affinity-portrait .portrait-fallback {
   display: none;
   width: 100%;
@@ -581,6 +594,21 @@
   background: #ddd;
   color: #666;
   font-size: 14px;
+  border-radius: 8px;
+}
+
+/* ★ 向前（说话） */
+.affinity-portrait.speaking {
+  transform: scale(1.15); 
+  filter: brightness(1) contrast(1);
+  z-index: 2;
+}
+
+/* ★ 向后（不说话） */
+.affinity-portrait.dimmed {
+  transform: scale(0.9); 
+  filter: brightness(0.6) grayscale(0.2);
+  z-index: 1;
 }
 
 .affinity-line {

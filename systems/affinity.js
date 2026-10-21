@@ -66,16 +66,57 @@ function renderAffinityLine() {
   const line = story.lines[affinityLineIdx];
   const isLastLine = affinityLineIdx >= story.lines.length - 1;
 
-  // 立绘
-  const portraitHTML = `
-    <div class="affinity-portrait">
-      <img src="assets/chars_full/${charId}.png"
-           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
-      <div class="portrait-fallback">${c ? c.name : charId}</div>
-    </div>
-  `;
+  const speaker = line.who;
+  const hasLeye = story.lines.some(l => l.who === '蕾叶');
 
-  // 台词
+  // ★ 核心：获取当前要用的立绘文件名
+  // 如果 line.img 有值，就用这个；否则如果是心玖，默认用 kokono_2；其他角色用原 id
+  let charImgName = line.img || (charId === 'kokono' ? 'kokono_2' : charId);
+  // 蕾叶的立绘也可以变，同理
+  let leyeImgName = line.leyeImg || 'leye'; 
+
+  let portraitsHTML = '';
+
+  if (charId === 'leye') {
+    portraitsHTML = `
+      <div class="affinity-portrait center">
+        <img src="assets/chars_full/${charImgName}.png" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="portrait-fallback">须贺蕾叶</div>
+      </div>
+    `;
+  } 
+  else if (hasLeye) {
+    let leyeClass = 'affinity-portrait left';
+    let charClass = 'affinity-portrait right';
+
+    if (speaker === '蕾叶') {
+      leyeClass += ' speaking';
+      charClass += ' dimmed';
+    } else if (speaker) { 
+      leyeClass += ' dimmed';
+      charClass += ' speaking';
+    } 
+
+    portraitsHTML = `
+      <div class="${leyeClass}">
+        <img src="assets/chars_full/${leyeImgName}.png" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="portrait-fallback">须贺蕾叶</div>
+      </div>
+      <div class="${charClass}">
+        <img src="assets/chars_full/${charImgName}.png" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="portrait-fallback">${c ? c.name : charId}</div>
+      </div>
+    `;
+  } 
+  else {
+    portraitsHTML = `
+      <div class="affinity-portrait center">
+        <img src="assets/chars_full/${charImgName}.png" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="portrait-fallback">${c ? c.name : charId}</div>
+      </div>
+    `;
+  }
+
   let lineHTML;
   if (line.who) {
     lineHTML = `<p><span class="speaker">${line.who}：</span>${line.say}</p>`;
@@ -83,12 +124,11 @@ function renderAffinityLine() {
     lineHTML = `<p style="color:#666">${line.text}</p>`;
   }
 
-  // 进度指示
   const progressHTML = `<div class="affinity-progress">${affinityLineIdx + 1} / ${story.lines.length}</div>`;
 
   showModal(`
     <div class="affinity-scene">
-      ${portraitHTML}
+      ${portraitsHTML}
     </div>
     <div class="affinity-line">
       ${lineHTML}
