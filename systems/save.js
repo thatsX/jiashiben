@@ -19,7 +19,10 @@ function collectSaveData() {
     affinity: c.current.affinity,
     task: c.current.task,
     workShop: c.current.workShop,
-    talkedThisWeek: c.current.talkedThisWeek
+    talkedThisWeek: c.current.talkedThisWeek,
+    skills: [...c.skills],
+    traits: { ...c.traits }, 
+    positionBonus: { ...c.positionBonus }
   }));
 
   // 4. 普通商店数据
@@ -78,6 +81,9 @@ function applySaveData(data) {
       c.current.task = sc.task;
       c.current.workShop = sc.workShop;
       c.current.talkedThisWeek = sc.talkedThisWeek;
+      if (sc.skills) c.skills = [...sc.skills];
+      if (sc.traits) c.traits = { ...sc.traits };
+      if (sc.positionBonus) c.positionBonus = { ...sc.positionBonus };
     });
   }
 

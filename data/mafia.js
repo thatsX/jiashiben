@@ -148,8 +148,7 @@ const GODFATHER_ENDING_SCRIPT = {
   ]
 };
 
-// ★ 恢复高工资，但极道声望只靠 Live 和 赌拳 来刷
 const MAFIA_SHOPS = [
-  { id: 'bar',    name: '极道酒吧',   x: 25, y: 18, baseWage: 5000, energyCost: 35, recipes: [], unlockAt: [1] },
-  { id: 'casino', name: '地下娱乐城', x: 75, y: 18, baseWage: 7000, energyCost: 45, recipes: [], unlockAt: [1] },
+  { id: 'bar',    name: '极道酒吧',   x: 25, y: 18, baseWage: 5000, energyCost: 35, recipes: [], unlockAt: [1], workCount: 0, affinity: 0 },
+  { id: 'casino', name: '地下娱乐城', x: 75, y: 18, baseWage: 7000, energyCost: 45, recipes: [], unlockAt: [1], workCount: 0, affinity: 0 },
 ];

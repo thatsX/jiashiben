@@ -15,7 +15,7 @@ function calcAllEnergyCosts() {
     if (task === 'rest') {
       cost = 0;
     } else if (task === 'work') {
-      const shop = SHOPS.find(s => s.id === c.current.workShop);
+      let shop = SHOPS.find(s => s.id === c.current.workShop);
       cost = shop ? shop.energyCost : 25;
     } else {
       const t = TASKS.find(x => x.id === task);
@@ -473,8 +473,12 @@ function doSettle(restaurantOpen) {
 
   const newRecipes = [];
   shopsUsed.forEach(shopId => {
-    const shop = SHOPS.find(s => s.id === shopId);
+    let shop = SHOPS.find(s => s.id === shopId);
+    if (!shop && typeof MAFIA_SHOPS !== 'undefined') {
+      shop = MAFIA_SHOPS.find(s => s.id === shopId);
+    }
     if (!shop) return;
+    shop.workCount = (shop.workCount || 0) + 1;
     shop.workCount++;
     shop.recipes.forEach((rid, i) => {
       const need = shop.unlockAt[i];

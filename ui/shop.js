@@ -94,6 +94,7 @@ function openShop(shopId) {
     if (!c.traits.canWork) return false;
     if (isExhausted(c)) return false;
     if (c.current.workShop) return false;
+    if (isMafiaShop && c.id === 'ningetsu') return false;
     return true;
   });
 

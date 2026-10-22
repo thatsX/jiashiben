@@ -9,6 +9,14 @@ function enterMafiaLine() {
   state.isMafia = true;
   state.cash -= 20000; 
   characters.forEach(c => c.current.energy = Math.max(0, c.current.energy - 20));
+
+  characters.forEach(c => {
+    if (c.current.task === 'work') {
+      c.current.task = 'rest';
+      c.current.workShop = null;
+      assignHomeInitialPosition(c);
+    }
+  });
   
   state.mafiaQuestIdx = 0;
   state.mafiaDeadline = state.week + MAFIA_QUESTS[0].deadlineAdd;
@@ -25,6 +33,14 @@ function failMafiaLine(reason) {
   state.mafiaRep = 0;
   state.mafiaQuestIdx = 0;
   state.mafiaFailMsg = reason;
+
+  characters.forEach(c => {
+    if (c.current.task === 'work') {
+      c.current.task = 'rest';
+      c.current.workShop = null;
+      assignHomeInitialPosition(c);
+    }
+  });
   
   document.getElementById('app').classList.remove('theme-mafia');
   

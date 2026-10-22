@@ -64,7 +64,10 @@ function calculateBusiness(restaurantOpen) {
     let workIncome = 0;
     characters.forEach(c => {
       if (c.current.task === 'work' && c.current.workShop && !isExhausted(c)) {
-        const shop = SHOPS.find(s => s.id === c.current.workShop);
+      let shop = SHOPS.find(s => s.id === c.current.workShop);
+      if (!shop && typeof MAFIA_SHOPS !== 'undefined') {
+        shop = MAFIA_SHOPS.find(s => s.id === c.current.workShop);
+      }
         if (shop) workIncome += shop.baseWage * getEffectiveWorkMultiplier(c);
       }
     });
@@ -191,7 +194,11 @@ function calculateBusiness(restaurantOpen) {
   let workIncome = 0;
   characters.forEach(c => {
     if (c.current.task === 'work' && c.current.workShop && !isExhausted(c)) {
-      const shop = SHOPS.find(s => s.id === c.current.workShop);
+      // ★ 修改这里：找不到日常商店，就去极道商店找
+      let shop = SHOPS.find(s => s.id === c.current.workShop);
+      if (!shop && typeof MAFIA_SHOPS !== 'undefined') {
+        shop = MAFIA_SHOPS.find(s => s.id === c.current.workShop);
+      }
       if (shop) workIncome += shop.baseWage * getEffectiveWorkMultiplier(c);
     }
   });
