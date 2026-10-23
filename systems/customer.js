@@ -38,6 +38,8 @@ function spawnNormalCustomer() {
 //   客人走动 AI
 // ============================================================
 function tickCustomers(dt) {
+  // ★ 夜间经营期间暂停普通客人 AI，避免影响状态
+  if (state.night && state.night.active) return;
   state.customers.forEach(c => {
     c.timer -= dt;
     if (c.timer > 0) return;
@@ -79,6 +81,13 @@ function tickCustomers(dt) {
 function updateCustomersDOM() {
   const el = document.getElementById('layer-customers');
   if (!el) return;
+
+  if (state.night && state.night.active) {
+    el.innerHTML = '';
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = '';
 
   Array.from(el.children).forEach(child => {
     if (!state.customers.find(c => c.uid === child.dataset.custId)) {

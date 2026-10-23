@@ -2,8 +2,78 @@
    ui/home.js —— 首页渲染
    ============================================================ */
 
+/* ============================================================
+   夜间经营：岗位站位（借用白天坐标，避免重叠）
+   ============================================================ */
+const NIGHT_STATION_POS = {
+  front:   { x: 20, y: 40 },   // 收银台
+  kitchen: { x: 78, y: 28 },   // 灶台
+  wash:    { x: 45, y: 15 },   // 洗碗槽
+  buy:     { x: 88, y: 52 },   // 采购（门口附近，不挡桌椅）
+};
+
+/* ★ 夜间 sprite 图片兜底：
+   优先 _mafia.png → 退回正常图 → 退回简易人形 */
+function nightSpriteErr(img, normalSrc) {
+  if (!img) return;
+  img.onerror = null;
+  if (img.src && img.src.indexOf('_mafia') >= 0) {
+    img.src = normalSrc;
+    img.onerror = function () {
+      img.style.display = 'none';
+      if (img.nextElementSibling) img.nextElementSibling.style.display = 'block';
+    };
+  } else {
+    img.style.display = 'none';
+    if (img.nextElementSibling) img.nextElementSibling.style.display = 'block';
+  }
+}
+
+function renderNightCharsDOM() {
+  const el = document.getElementById('layer-chars');
+  if (!el) return;
+
+  if (!state.night || !state.night.assignments) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const items = [];
+  Object.keys(state.night.assignments).forEach(stationId => {
+    const charId = state.night.assignments[stationId];
+    if (!charId) return;
+    const c = characters.find(x => x.id === charId);
+    if (!c) return;
+    const pos = NIGHT_STATION_POS[stationId];
+    if (!pos) return;
+
+    const mafiaSrc  = `assets/sprites/${c.id}_mafia.png`;
+    const normalSrc = `assets/sprites/${c.id}.png`;
+    const energyPct = (c.current.energy / c.traits.energyMax) * 100;
+
+    items.push(`
+      <div class="sprite"
+           data-char-id="${c.id}"
+           style="left:${pos.x}%; top:${pos.y}%;"
+           onclick="nightTalkToChar('${c.id}')">
+        <img src="${mafiaSrc}" onerror="nightSpriteErr(this, '${normalSrc}')">
+        <div class="sprite-fallback">
+          <div class="fb-head"></div>
+          <div class="fb-body"></div>
+        </div>
+        <div class="sprite-label">${c.name}</div>
+        <div class="sprite-energy">
+          <div class="sprite-energy-fill" style="width:${energyPct}%"></div>
+        </div>
+      </div>
+    `);
+  });
+  el.innerHTML = items.join('');
+}
+
 function renderHome() {
   const el = document.getElementById('page-home');
+  const isNightActive = !!(state.night && state.night.active);
 
   const hasFront = characters.some(c => c.current.task === 'front' && !isExhausted(c));
   const hasKitchen = characters.some(c => c.current.task === 'kitchen' && !isExhausted(c));
@@ -39,8 +109,8 @@ function renderHome() {
     return `
       <div class="station ${stationId}"
            style="left:${spot.x}%; top:${spot.y}%;
-                  width:${imgW}px; height:${imgH}px;"
-           onclick="openStationSchedule('${stationId}')">
+                  width:${imgW}px; height:${imgH}px;${isNightActive ? 'pointer-events:none;' : ''}"
+           ${isNightActive ? '' : `onclick="openStationSchedule('${stationId}')"`}>
         <img class="station-img" src="${imgSrc}"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
         <div class="station-fallback">
@@ -60,8 +130,8 @@ function renderHome() {
     return `
       <div class="station front"
            style="left:${spot.x}%; top:${spot.y}%;
-                  width:${imgW}px; height:${imgH}px;"
-           onclick="openStationSchedule('front')">
+                  width:${imgW}px; height:${imgH}px;${isNightActive ? 'pointer-events:none;' : ''}"
+           ${isNightActive ? '' : `onclick="openStationSchedule('front')"`}>
         <img class="station-img" src="${imgSrc}"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
         <div class="station-fallback">
@@ -208,6 +278,16 @@ function renderHome() {
   }
 
   // ============ 渲染 ============
+  const bottomBtnHTML = isNightActive
+    ? `<button class="settle-btn" style="background:#b8860b;color:#000" onclick="settleNight()">🌙 算账</button>`
+    : `<button class="settle-btn" onclick="settle()">
+        ${state.banquet && state.banquet.weeksLeft === 1 ? '🎊 举办宴席结算' : (canOperate && state.menu.length > 0 ? '营业结算' : '结算（餐馆未营业）')}
+      </button>`;
+  
+    const menuBtnHTML = isNightActive
+    ? `<button class="scene-menu-btn" style="background:#b8860b;color:#000;cursor:not-allowed;opacity:0.9;pointer-events:none" disabled>🌙 夜间营业中</button>`
+    : `<button class="scene-menu-btn" onclick="switchPage('menu')">📋 ${menuBtnText}</button>`;
+
   el.innerHTML = `
     <div id="scene-restaurant">
       <div class="scene-status-panel">
@@ -221,9 +301,7 @@ function renderHome() {
         ${eventHTML}
       </div>
 
-      <button class="scene-menu-btn" onclick="switchPage('menu')">
-        📋 ${menuBtnText}
-      </button>
+      ${menuBtnHTML}
 
       <div class="music-speaker ${musicPlaying ? 'playing' : ''}" onclick="openMusicPicker()">
         <img src="assets/ui/speaker.png"
@@ -241,7 +319,7 @@ function renderHome() {
       <div class="layer-customers" id="layer-customers"></div>
       <div class="layer-stations-front">${frontStationHTML}</div>
 
-      ${!canOperate ? `<div class="scene-empty">还缺：${missing.join(' / ')}<br>去「家庭」页排班吧</div>` : ''}
+      ${!canOperate && !isNightActive ? `<div class="scene-empty">还缺：${missing.join(' / ')}<br>去「家庭」页排班吧</div>` : ''}
     </div>
     
     <div style="padding: 10px 12px 0 12px;">
@@ -249,14 +327,22 @@ function renderHome() {
     </div>
 
     <div class="home-bottom-bar">
-      <button class="settle-btn" onclick="settle()">
-        ${state.banquet && state.banquet.weeksLeft === 1 ? '🎊 举办宴席结算' : (canOperate && state.menu.length > 0 ? '营业结算' : '结算（餐馆未营业）')}
-      </button>
+      ${bottomBtnHTML}
     </div>
   `;
 
   renderWorkCharsDOM();
-  updateCustomersDOM();
+
+  // ★ 夜间 vs 白天：角色渲染分支
+  if (isNightActive) {
+    renderNightCharsDOM();
+    renderNightCommissions();
+  } else {
+    renderWorkCharsDOM();
+    const oldNightLayer = document.getElementById('layer-night-commissions');
+    if (oldNightLayer) oldNightLayer.remove();
+    updateCustomersDOM();
+  }
 }
 
 function renderWorkCharsDOM() {

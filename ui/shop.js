@@ -1,4 +1,8 @@
 function renderShop() {
+  if (state.night && state.night.active && typeof renderNightShop === 'function') {
+    return renderNightShop();
+  }
+
   const el = document.getElementById('page-shop');
 
   // ============================================
@@ -114,7 +118,29 @@ function openShop(shopId) {
       `;
     }).join('');
   } else if (isMafiaShop) {
-    recipesHTML = '<p style="font-size:12px;color:#888;text-align:center;padding:4px">极道店铺不提供菜谱，但提供高额报酬与声望。</p>';
+    // ★ 极道商店：显示本店可解锁的黑道菜谱与进度
+    const mafiaRecipes = (typeof MAFIA_RECIPES !== 'undefined')
+      ? MAFIA_RECIPES.filter(r => r.unlock && r.unlock.shopId === shopId)
+      : [];
+
+    if (mafiaRecipes.length > 0) {
+      recipesHTML = mafiaRecipes.map(r => {
+        const owner = characters.find(c => c.id === r.owner);
+        // ★ 按「该菜所属角色」的打工次数判断，与夜间系统保持一致
+        const charCounts = (state.mafiaCharWorkCount || {})[r.owner] || {};
+        const charWork = charCounts[shopId] || 0;
+        const unlocked = charWork >= r.unlock.count;
+        const cls = unlocked ? 'recipe-unlock unlocked' : 'recipe-unlock';
+        return `
+          <div class="${cls}">
+            <span>${r.name}（${owner ? owner.name : r.owner}）</span>
+            <span>${unlocked ? '已解锁' : `打工 ${r.unlock.count} 次（${charWork}/${r.unlock.count}）`}</span>
+          </div>
+        `;
+      }).join('');
+    } else {
+      recipesHTML = '<p style="font-size:12px;color:#888;text-align:center;padding:4px">极道店铺不提供菜谱，但提供高额报酬与声望。</p>';
+    }
   }
 
   // 2. 渲染候选人
@@ -161,7 +187,7 @@ function openShop(shopId) {
 
   // 4. 计算预计收入与极道声望
   const income = workingHere.reduce((s, c) => s + shop.baseWage * getEffectiveWorkMultiplier(c), 0);
-  const repInfo = isMafiaShop ? `<div class="ledger-row"><span>极道声望</span><span style="color:#b8860b">+15 / 人</span></div>` : '';
+  const repInfo = isMafiaShop ? `<div class="ledger-row"><span>极道声望</span><span style="color:#b8860b">+2 / 人</span></div>` : '';
 
   showModal(`
     <h3>${shop.name}</h3>
@@ -224,14 +250,6 @@ function toggleWorker(shopId, charId) {
     c.current.workShop = shopId;
     c.current.position = { x: -20, y: 60 };
     
-    // 极道打工推进任务
-    const isMafiaShop = MAFIA_SHOPS.some(s => s.id === shopId);
-    if (isMafiaShop && state.isMafia) {
-      const q = MAFIA_QUESTS[state.mafiaQuestIdx];
-      if (q && q.type === 'work_count') {
-        q.current = (q.current || 0) + 1;
-      }
-    }
   }
   
   openShop(shopId);

@@ -11,6 +11,7 @@ function collectSaveData() {
   
   // 2. 移除不需要保存的动态数据（客人每次读档时重新生成）
   delete stateCopy.customers;
+  delete stateCopy.night;  // ★ 夜间经营只在当前会话内有效
 
   // 3. 角色状态
   const charsData = characters.map(c => ({
@@ -43,12 +44,19 @@ function collectSaveData() {
   }
 
   return {
-    version: 2, // 版本号升级，防止旧档冲突
+    version: 2,
     timestamp: Date.now(),
     state: stateCopy,
     characters: charsData,
     shops: shopsData,
-    mafiaShops: mafiaShopsData
+    mafiaShops: mafiaShopsData,
+    mafiaQuests: (typeof MAFIA_QUESTS !== 'undefined')
+      ? MAFIA_QUESTS.map(q => ({
+          id: q.id,
+          current: q.current || 0,
+          liveDone: q.liveDone || false,
+        }))
+      : [],
   };
 }
 
@@ -70,6 +78,9 @@ function applySaveData(data) {
   state.learnedRecipes = state.learnedRecipes || [];
   state.unlockedPremium = state.unlockedPremium || [];
   state.stationUpgrades = state.stationUpgrades || { kitchen: 0, wash: 0, front: 0 };
+  state.unlockedMafiaRecipes = state.unlockedMafiaRecipes || [];  // ★ 老存档兼容
+  state.mafiaCharWorkCount = state.mafiaCharWorkCount || {};  // ★ 老存档兼容
+  state.night = null;  // ★ 读档重置夜间经营（懒初始化）
 
   // 2. 恢复角色状态
   if (data.characters) {
@@ -104,6 +115,16 @@ function applySaveData(data) {
       if (!s) return;
       s.workCount = ss.workCount;
       s.affinity = ss.affinity;
+    });
+  }
+
+  // 4.5. 恢复极道任务进度
+  if (data.mafiaQuests && typeof MAFIA_QUESTS !== 'undefined') {
+    data.mafiaQuests.forEach(sq => {
+      const q = MAFIA_QUESTS.find(x => x.id === sq.id);
+      if (!q) return;
+      q.current = sq.current;
+      if (sq.liveDone !== undefined) q.liveDone = sq.liveDone;
     });
   }
 

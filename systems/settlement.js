@@ -253,55 +253,12 @@ function doSettle(restaurantOpen) {
   // ============ 5. 极道打工与任务推进 ============
   let mafiaWorkCount = 0;
   characters.forEach(c => {
-    if (c.current.task === 'work' && c.current.workShop) {
+    if (c.current.task === 'work' && c.current.workShop && !isExhausted(c)) {
       if (MAFIA_SHOPS.some(s => s.id === c.current.workShop)) {
         mafiaWorkCount++;
       }
     }
   });
-
-  if (state.isMafia) {
-    if (mafiaWorkCount > 0) {
-      state.mafiaRep += 5 * mafiaWorkCount; 
-      
-      const q = MAFIA_QUESTS[state.mafiaQuestIdx];
-      if (q && q.type === 'work_count') {
-        q.current = (q.current || 0) + mafiaWorkCount;
-      }
-    }
-
-    const q = MAFIA_QUESTS[state.mafiaQuestIdx];
-    if (q) {
-      // 同步进度
-      if (q.type === 'cash') q.current = state.cash;
-      if (q.type === 'live_hold') q.current = state.mafiaRep;
-
-      // ★ 1. 准确判断是否达标（如果是 live_hold，必须声望够且 liveDone 为 true）
-      const isTargetMet = (q.type === 'live_hold') 
-        ? (q.current >= q.target && q.liveDone === true) 
-        : (q.current >= q.target);
-
-      // ★ 2. 超时判定：只要没达标，超时了就失败
-      if (state.week >= state.mafiaDeadline && !isTargetMet) {
-        mafiaFailMsg = `任务【${q.title}】超时未完成，被极道扫地出门。`;
-      }
-      
-      // ★ 3. 推进判定：使用 isTargetMet 进行判断
-      if (isTargetMet && !mafiaFailMsg) {
-        const script = MAFIA_QUESTS_SCRIPTS[state.mafiaQuestIdx];
-        state.mafiaQuestIdx++;
-        
-        if (state.mafiaQuestIdx < MAFIA_QUESTS.length) {
-          const nextQ = MAFIA_QUESTS[state.mafiaQuestIdx];
-          state.mafiaDeadline = state.week + nextQ.deadlineAdd;
-        }
-
-        if (script) {
-          pendingMafiaCutscene = { lines: script };
-        }
-      }
-    }
-  }
 
   // ============ 7. 判定是否为宴席周 ============
   let isBanquetWeek = false;
@@ -350,6 +307,47 @@ function doSettle(restaurantOpen) {
 
   state.cash += r.cashChange;
   state.totalProfit += r.profit;
+
+  // ★ 极道任务推进（挪到现金更新之后，保证 cash 类型判断用新值）
+  if (state.isMafia) {
+    if (mafiaWorkCount > 0) {
+      state.mafiaRep += 2 * mafiaWorkCount;
+
+      const q = MAFIA_QUESTS[state.mafiaQuestIdx];
+      if (q && q.type === 'work_count') {
+        q.current = (q.current || 0) + mafiaWorkCount;
+      }
+    }
+
+    const q = MAFIA_QUESTS[state.mafiaQuestIdx];
+    if (q) {
+      if (q.type === 'cash') q.current = state.cash;
+      if (q.type === 'live_hold') q.current = state.mafiaRep;
+
+      const isTargetMet = (q.type === 'live_hold')
+        ? (q.current >= q.target && q.liveDone === true)
+        : (q.current >= q.target);
+
+      if (state.week >= state.mafiaDeadline && !isTargetMet) {
+        mafiaFailMsg = `任务【${q.title}】超时未完成，被极道扫地出门。`;
+      }
+
+      if (isTargetMet && !mafiaFailMsg) {
+        const script = MAFIA_QUESTS_SCRIPTS[state.mafiaQuestIdx];
+        state.mafiaQuestIdx++;
+
+        if (state.mafiaQuestIdx < MAFIA_QUESTS.length) {
+          const nextQ = MAFIA_QUESTS[state.mafiaQuestIdx];
+          state.mafiaDeadline = state.week + nextQ.deadlineAdd;
+        }
+
+        if (script) {
+          pendingMafiaCutscene = { lines: script };
+        }
+      }
+    }
+  }
+
   const settledWeek = state.week;
   state.week++;
 
@@ -465,6 +463,20 @@ function doSettle(restaurantOpen) {
     }
   }
 
+  // ★ 黑道商店：按角色统计打工次数（用于夜间菜谱解锁）
+  if (typeof MAFIA_SHOPS !== 'undefined') {
+    if (!state.mafiaCharWorkCount) state.mafiaCharWorkCount = {};
+    characters.forEach(c => {
+      if (c.current.task === 'work' && c.current.workShop && !isExhausted(c)) {
+        if (MAFIA_SHOPS.some(s => s.id === c.current.workShop)) {
+          if (!state.mafiaCharWorkCount[c.id]) state.mafiaCharWorkCount[c.id] = {};
+          state.mafiaCharWorkCount[c.id][c.current.workShop] =
+            (state.mafiaCharWorkCount[c.id][c.current.workShop] || 0) + 1;
+        }
+      }
+    });
+  }
+
   // ============ 14. 店铺打工次数 + 新菜谱 ============
   const shopsUsed = new Set();
   characters.forEach(c => {
@@ -479,7 +491,6 @@ function doSettle(restaurantOpen) {
     }
     if (!shop) return;
     shop.workCount = (shop.workCount || 0) + 1;
-    shop.workCount++;
     shop.recipes.forEach((rid, i) => {
       const need = shop.unlockAt[i];
       if (shop.workCount >= need && state.learnedRecipes.indexOf(rid) < 0) {
@@ -608,10 +619,15 @@ function showSettlementDialogue(settleData) {
           </p>
         </div>
       `);
-      document.getElementById('modal-btn').onclick = () => {
-        closeModal();
+    document.getElementById('modal-btn').onclick = () => {
+      closeModal();
+      // ★ 警察事件之后也进夜间
+      if (typeof maybeStartNightBusiness === 'function') {
+        maybeStartNightBusiness(() => checkEnding());
+      } else {
         checkEnding();
-      };
+      }
+    };
       document.getElementById('modal-btn').textContent = '太好了！';
       return;
     }
@@ -619,8 +635,13 @@ function showSettlementDialogue(settleData) {
     // 2. 如果有极道任务的过场，先播过场
     if (pendingMafiaCutscene) {
       playCutscene(pendingMafiaCutscene, () => {
-        // 极道过场播完后，再去检查好感度
-        if (typeof triggerAfterSettlement === 'function') {
+        // ★ 过场后先问夜间，再触发好感度
+        if (typeof maybeStartNightBusiness === 'function') {
+          maybeStartNightBusiness(() => {
+            if (typeof triggerAfterSettlement === 'function') triggerAfterSettlement();
+            else checkEnding();
+          });
+        } else if (typeof triggerAfterSettlement === 'function') {
           triggerAfterSettlement();
         } else {
           checkEnding();
@@ -630,7 +651,12 @@ function showSettlementDialogue(settleData) {
     }
 
     // 3. 没有极道过场，正常检查好感度
-    if (typeof triggerAfterSettlement === 'function') {
+    if (typeof maybeStartNightBusiness === 'function') {
+      maybeStartNightBusiness(() => {
+        if (typeof triggerAfterSettlement === 'function') triggerAfterSettlement();
+        else checkEnding();
+      });
+    } else if (typeof triggerAfterSettlement === 'function') {
       triggerAfterSettlement();
     } else {
       checkEnding();

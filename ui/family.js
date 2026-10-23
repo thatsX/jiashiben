@@ -1,4 +1,8 @@
 function renderFamily() {
+  if (state.night && state.night.active && typeof renderNightFamily === 'function') {
+    return renderNightFamily();
+  }
+  
   const el = document.getElementById('page-family');
 
   const homeChars = characters.filter(c => TASK_ZONE[c.current.task] === 'home');

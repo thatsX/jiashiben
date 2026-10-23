@@ -24,6 +24,8 @@ let state = {
   // 好感度剧情
   seenAffinityStories: [],    // ['leye_20', 'kokono_40', ...]
   unlockedMusic: [],          // 通过剧情解锁的音乐 id
+  unlockedMafiaRecipes: [],   // ★ 夜间经营：已解锁的黑道菜谱 id（存档持久化）
+  mafiaCharWorkCount: {}, 
   lastWeekSpecials: [],   // 上周来过的特殊客人 id
 
   // 心玖家务消耗（好感 80 时从 5 降到 2）

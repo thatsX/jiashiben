@@ -188,6 +188,7 @@ function changeTask(charId, taskId) {
 //   岗位台快速排班
 // ============================================================
 function openStationSchedule(stationId) {
+  if (state.night && state.night.active) return;
   const stationNames = {
     kitchen: '灶台',
     wash: '洗碗槽',

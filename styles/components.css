@@ -1152,3 +1152,62 @@
   80% { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* ============================================================
+   夜间经营：委托人图标
+   ============================================================ */
+.night-commission-icon {
+  position: absolute;
+  width: 70px;
+  height: 90px;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 8;
+  transition: transform 0.15s;
+}
+.night-commission-icon:hover {
+  transform: translate(-50%, -100%) scale(1.08);
+}
+.night-commission-icon .bubble {
+  background: #b8860b;
+  color: #fff;
+  border: 2px solid #000;
+  border-radius: 8px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: bold;
+  white-space: nowrap;
+  margin-bottom: 3px;
+  animation: musicPulse 1.2s ease-in-out infinite;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+}
+.night-commission-icon .box {
+  width: 42px;
+  height: 42px;
+  background: #333;
+  border: 2px solid #b8860b;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #fff;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.25);
+}
+.night-commission-icon .label {
+  margin-top: 3px;
+  font-size: 10px;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

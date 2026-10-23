@@ -3,6 +3,10 @@
    ============================================================ */
 
 function renderMenu() {
+  if (state.night && state.night.active && typeof renderNightMenu === 'function') {
+    return renderNightMenu();
+  }
+
   const el = document.getElementById('page-menu');
 
   const avail = getAvailableRecipes(); // 根据后厨角色获取可做的普通菜

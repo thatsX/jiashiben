@@ -15,6 +15,7 @@ function buildPreloadList() {
       list.push('assets/sprites/' + c.id + '.png');
       list.push('assets/sprites/' + c.id + '_tired.png');
       list.push('assets/sprites/' + c.id + '_exhausted.png');
+      list.push('assets/sprites/' + c.id + '_mafia.png');
     });
   }
 
