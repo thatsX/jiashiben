@@ -893,3 +893,102 @@ function nightSleepTalk(charId) {
   `);
   document.getElementById('modal-btn').textContent = '关闭';
 }
+
+/* ============================================================
+   夜间：A形立牌浏览 & 黑道评价
+   ============================================================ */
+
+function openNightPosterModal() {
+  if (!state.night || !state.night.active) return;
+
+  const a = state.night.assignments;
+  const rep = state.mafiaRep || 0;
+  const comment = getMafiaComment(rep);
+
+  // ★ 定义每个人对应的黑道职位
+  const MAFIA_ROLE_TAGS = {
+    leye:     '组长',
+    kokono:   '若头',
+    housaki:  '若众',
+    chisato:  '舍弟',
+    ningetsu: '教子',
+  };
+
+  // ★ 只生成「职位 + 名字」，不加岗位名称
+  const tagHTML = (id) => {
+    if (!id) return `<div class="a-tag">（空缺）</div>`;
+    const c = characters.find(x => x.id === id);
+    if (!c) return '';
+    const role = MAFIA_ROLE_TAGS[c.id] || '成员';
+    return `<div class="a-tag">${role} ${c.name}</div>`;
+  };
+
+  showModal(`
+    <div style="display:flex;flex-direction:column;align-items:center;padding-top:10px">
+      
+      <!-- 大立牌预览 -->
+      <div class="a-stand-modal">
+        <div class="a-stand-board">
+          <img src="assets/ui/poster.png" class="a-stand-poster">
+          <div class="a-stand-tags">
+            ${tagHTML(a.front)}
+            ${tagHTML(a.kitchen)}
+            ${tagHTML(a.wash)}
+            ${tagHTML(a.buy)}
+          </div>
+        </div>
+        <div class="a-stand-legs"></div>
+      </div>
+
+      <!-- 黑道评价 -->
+      <h4 style="width:100%;text-align:left;color:#b8860b;margin-bottom:8px;font-size:14px;">
+        路人的评价（当前声誉：${rep}）
+      </h4>
+      <div class="talk-bubble" style="background:#222;color:#eee;border-color:#b8860b;width:100%;box-sizing:border-box;text-align:left;margin-top:0;">
+        <p style="font-size:13px;line-height:1.7;">${comment}</p>
+      </div>
+    </div>
+  `);
+  document.getElementById('modal-btn').textContent = '关闭';
+}
+
+function getMafiaComment(rep) {
+  let pool = [];
+  if (rep < 50) {
+    pool = [
+      "“须贺组？……不是这里吧？这几个高中生要干什么？”",
+      "“设计这个牌子的不是个大佬就是个神人……”",
+      "“估计是一时兴起吧。要不要打个赌，这牌子能立几天？”"
+    ];
+  } else if (rep < 100) {
+    pool = [
+      "“大哥，我们真的要跟这里混吗？”  “废话！到新兴的堂口混才有出头的机会！”  “但是大哥，上次你拜把子的那个不是千樱梨联盟的组长吗？为什么又变成须贺组了？”",
+      "“上次在这儿办的事干脆利落。哪怕是作为雇佣兵的我都有些钦佩。”",
+      "“怎么感觉她们的组长长得有点像上次给我送外卖的骑手？”",
+      "“有需要‘料理’的，记得交给那个白头发的……就属她最靠谱，别的几个有点难搞……”"
+    ];
+  } else if (rep < 150) {
+    pool = [
+      "“负责善后的那家伙像个幽灵一样……到现在都没人知道长什么样。不过那也是应该的……作为善后之人来说。”",
+      "“大哥，我们现在到底是须贺组的、FAMILY的还是千樱梨联盟的人啊？”  “蠢货，当然是看哪位大人在场！”",
+      "“记住，进去就找须贺老大求情，她比较好说话。只要你说服她了，她会帮你跟马桥老大求情的……”",
+      "“这个带FAMILY后缀的须贺组和那个须贺组到底是什么关系？有人说是一家，有人又说不对付。”"
+    ];
+  } else if (rep < 200) {
+    pool = [
+      "“大哥，我发现马桥老大一出现，千樱梨组长和须贺老大都跟被霜打了一样。以后我们就自称马桥组组员吧。”",
+      "“以后看到这个彩虹色的牌子，就要跟见了教父本人一样，听到没？……我知道对着这个牌子憋笑很难，但是这是命令！”",
+      "“以前在这里委托多舒心，现在名气大了还要排队了……唉，谁让我管的那条街现在在FAMILY的势力范围里面了，想找别人也不好使啊。”",
+      "“所以教父大人天天强调的FAMILY到底是什么？”  “真拿你没办法，坐好咯，所谓family，就是住在同一个屋檐下，一起吃饭，一起生活，一起玩……呃，玩黑道？玩乐队？糟了，要被须贺老大罚了……”"
+    ];
+  } else {
+    pool = [
+      "“传说中的FAMILY……居然就在这种不起眼的地方。”  “一直都在这里，白天还能来吃饭呢。”  “啊？”",
+      "（紧张地自言自语）“教母大人原谅我，我做错了…原谅我，我做错了……”  “你做错什么了？看今天晚上这情况，教母都不一定见你。”  “我实在是太疏忽了，我在划小船门口喊了她教母大人……”  “那你等死吧……”",
+      "“希望千樱梨组长今天能给我们安排轻松一些的任务……现在那些交易都握在她手上，想要油水多的交易只能去找组长要。”",
+      "“这牌子真的不换一下吗？先不说别的，马桥老大每次来了都黑脸啊！”  “大概是换不了了吧，须贺老大说牌子立住了不烧心。”  “看着这牌子我挺烧心的……”",
+      "“这不是须贺组吗？怎么须贺老大吃个杯面老跟我们说不许告诉马桥老大，被发现了还老是欧内该啊？”  “不知道，大概是气管炎……”"
+    ];
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}

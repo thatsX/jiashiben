@@ -141,6 +141,23 @@ function renderHome() {
     `;
   })();
 
+    // ★ 辅助：获取夜间岗位角色名
+  const getNightCharName = (id) => {
+    if (!id) return '——';
+    const c = characters.find(x => x.id === id);
+    return c ? c.name : '——';
+  };
+
+  // ★ 夜间 A 形立牌（缩略图）
+  const nightPosterHTML = isNightActive ? `
+    <div class="a-stand" onclick="openNightPosterModal()">
+      <div class="a-stand-board">
+        <img src="assets/ui/poster.png" class="a-stand-poster" onerror="this.style.display='none'">
+      </div>
+      <div class="a-stand-legs"></div>
+    </div>
+  ` : '';
+
   // 采购状态
   let purchaseText, purchaseClass;
   if (state.purchaseWeeks >= CONFIG.purchaseGraceWeeks) {
@@ -317,7 +334,10 @@ function renderHome() {
       <div class="layer-chairs">${chairsHTML}</div>
       <div class="layer-chars" id="layer-chars"></div>
       <div class="layer-customers" id="layer-customers"></div>
-      <div class="layer-stations-front">${frontStationHTML}</div>
+      <div class="layer-stations-front">
+        ${frontStationHTML}
+        ${nightPosterHTML}
+      </div>
 
       ${!canOperate && !isNightActive ? `<div class="scene-empty">还缺：${missing.join(' / ')}<br>去「家庭」页排班吧</div>` : ''}
     </div>

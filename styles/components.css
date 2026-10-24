@@ -1211,3 +1211,94 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ============================================================
+   夜间经营：A 形立牌
+   ============================================================ */
+
+/* 基础板面（通用） */
+.a-stand-board {
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  border: 2px solid #333;
+  border-radius: 4px;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+  position: relative;
+  /* ★ 注意：不要用 overflow: hidden，否则大图的标签超出边缘会被切掉 */
+}
+.a-stand-poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.a-stand-legs {
+  position: absolute;
+  top: 100%;
+  left: 10%;
+  right: 10%;
+  height: 10px;
+  background: #444;
+  clip-path: polygon(0 0, 100% 0, 90% 100%, 10% 100%);
+  z-index: -1;
+}
+
+/* === 1. 缩略图版（主页面上） === */
+.a-stand {
+  position: absolute;
+  left: 50%; /* 立牌在前台右侧 */
+  top: 48%; 
+  width: 56px; 
+  height: 84px;
+  transform: translate(-50%, -100%);
+  cursor: pointer;
+  z-index: 10;
+  pointer-events: auto;
+  transition: transform 0.15s;
+}
+.a-stand:hover {
+  transform: translate(-50%, -100%) scale(1.08);
+}
+
+/* === 2. 弹窗版（打开后的大图） === */
+.a-stand-modal {
+  position: relative;
+  width: 240px;  /* ★ 如果觉得弹窗海报小，改这里 */
+  height: 370px; /* ★ 保持 2:3 比例 */
+  margin-bottom: 30px;
+}
+.a-stand-modal .a-stand-board {
+  border-width: 4px;
+  border-radius: 6px;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+}
+.a-stand-modal .a-stand-legs {
+  height: 20px;
+}
+
+/* === 3. 白底黑字生硬纸条（只存在于弹窗大图） === */
+.a-stand-tags {
+  position: absolute;
+  top: 71%; /* ★ 在这里调标签整体上下位置 */
+  left: 75px; /* ★ 在这里调标签左右位置 */
+  right: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px; /* ★ 标签之间的间距 */
+  pointer-events: none;
+  z-index: 2;
+}
+
+.a-tag {
+  background: #fff;
+  color: #000;
+  font-size: 10px; /* ★ 在这里调标签字号 */
+  font-weight: bold;
+  padding: 2px 8px; /* ★ 在这里调标签内边距 */
+  border: 1px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  white-space: nowrap;
+  align-self: flex-start; /* 让纸条不要撑满整个宽度，只占文字宽度 */
+  transform: rotate(-2deg); /* ★ 如果想加倾斜可以在这里加 */
+}
