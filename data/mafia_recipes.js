@@ -9,81 +9,91 @@
 // ============================================================
 const MAFIA_RECIPES = [
   // ---- 须贺蕾叶（全属性，中庸倍率） ----
-  { id: 'mf_leye_bar_1',      name: '关东煮拼盘', owner: 'leye',    attribute: ['kitchen'],           source: 'bar',    poolId: 'bar_kitchen',    unlock: { shopId: 'bar',    count: 1 } },
-  { id: 'mf_leye_bar_2',      name: '深夜便当',   owner: 'leye',    attribute: ['front'],             source: 'bar',    poolId: 'bar_front',      unlock: { shopId: 'bar',    count: 3 } },
-  { id: 'mf_leye_casino_1',   name: '幸运寿司',   owner: 'leye',    attribute: ['front'],             source: 'casino', poolId: 'casino_front',   unlock: { shopId: 'casino', count: 1 } },
-  { id: 'mf_leye_casino_2',   name: '清账饭团',   owner: 'leye',    attribute: ['buy'],               source: 'casino', poolId: 'casino_buy',     unlock: { shopId: 'casino', count: 3 } },
+  { id: 'mf_leye_bar_1',      name: '关东煮',     owner: 'leye',    attribute: ['kitchen'],           source: 'bar',    poolId: 'bar_kitchen',    unlock: { shopId: 'bar',    count: 1 } },
+  { id: 'mf_leye_bar_2',      name: '卤肉饭',     owner: 'leye',    attribute: ['front'],             source: 'bar',    poolId: 'bar_front',      unlock: { shopId: 'bar',    count: 3 } },
+  { id: 'mf_leye_casino_1',   name: '三文鱼寿司', owner: 'leye',    attribute: ['front'],             source: 'casino', poolId: 'casino_front',   unlock: { shopId: 'casino', count: 1 } },
+  { id: 'mf_leye_casino_2',   name: '紫菜饭团',   owner: 'leye',    attribute: ['buy'],               source: 'casino', poolId: 'casino_buy',     unlock: { shopId: 'casino', count: 3 } },
 
   // ---- 马桥心玖（后厨/洗碗为主，精力效率高） ----
-  { id: 'mf_kokono_bar_1',    name: '深夜味噌',   owner: 'kokono',  attribute: ['kitchen'],           source: 'bar',    poolId: 'bar_kitchen',    unlock: { shopId: 'bar',    count: 1 } },
-  { id: 'mf_kokono_bar_2',    name: '静默洗物',   owner: 'kokono',  attribute: ['wash'],              source: 'bar',    poolId: 'bar_wash',       unlock: { shopId: 'bar',    count: 3 } },
-  { id: 'mf_kokono_casino_1', name: '清账宵夜',   owner: 'kokono',  attribute: ['kitchen', 'wash'],   source: 'casino', poolId: 'casino_kitchen', unlock: { shopId: 'casino', count: 1 } },
-  { id: 'mf_kokono_casino_2', name: '筹码回收',   owner: 'kokono',  attribute: ['buy'],               source: 'casino', poolId: 'casino_buy',     unlock: { shopId: 'casino', count: 3 } },
+  { id: 'mf_kokono_bar_1',    name: '味噌汤',     owner: 'kokono',  attribute: ['kitchen'],           source: 'bar',    poolId: 'bar_kitchen',    unlock: { shopId: 'bar',    count: 1 } },
+  { id: 'mf_kokono_bar_2',    name: '凉拌黄瓜',   owner: 'kokono',  attribute: ['wash'],              source: 'bar',    poolId: 'bar_wash',       unlock: { shopId: 'bar',    count: 3 } },
+  { id: 'mf_kokono_casino_1', name: '蛋炒饭',     owner: 'kokono',  attribute: ['kitchen', 'wash'],   source: 'casino', poolId: 'casino_kitchen', unlock: { shopId: 'casino', count: 1 } },
+  { id: 'mf_kokono_casino_2', name: '烤串',       owner: 'kokono',  attribute: ['buy'],               source: 'casino', poolId: 'casino_buy',     unlock: { shopId: 'casino', count: 3 } },
 
   // ---- 矢仓蓬咲（预设，洗碗为主 + 1 道弱属性） ----
-  { id: 'mf_housaki_preset_1', name: '阴暗洗碗',  owner: 'housaki', attribute: ['wash'],              source: 'preset', poolId: 'preset_wash' },
-  { id: 'mf_housaki_preset_2', name: '角落小菜',  owner: 'housaki', attribute: ['kitchen'],           source: 'preset', poolId: 'preset_kitchen' },
+  { id: 'mf_housaki_preset_1', name: '腌萝卜',    owner: 'housaki', attribute: ['wash'],              source: 'preset', poolId: 'preset_wash' },
+  { id: 'mf_housaki_preset_2', name: '毛豆',      owner: 'housaki', attribute: ['kitchen'],           source: 'preset', poolId: 'preset_kitchen' },
 
   // ---- 梅里千樱梨（后厨/前台为主，成功率与收入高，惩罚抗性低） ----
-  { id: 'mf_chisato_bar_1',    name: '联盟特调', owner: 'chisato', attribute: ['front'],             source: 'bar',    poolId: 'bar_front',      unlock: { shopId: 'bar',    count: 1 } },
-  { id: 'mf_chisato_bar_2',    name: '热血拉面', owner: 'chisato', attribute: ['kitchen'],           source: 'bar',    poolId: 'bar_kitchen',    unlock: { shopId: 'bar',    count: 3 } },
-  { id: 'mf_chisato_casino_1', name: '荷官套餐', owner: 'chisato', attribute: ['front'],             source: 'casino', poolId: 'casino_front',   unlock: { shopId: 'casino', count: 1 } },
-  { id: 'mf_chisato_casino_2', name: '清台大餐', owner: 'chisato', attribute: ['kitchen', 'front'],  source: 'casino', poolId: 'casino_front',   unlock: { shopId: 'casino', count: 3 } },
+  { id: 'mf_chisato_bar_1',    name: '柠檬汽水',  owner: 'chisato', attribute: ['front'],             source: 'bar',    poolId: 'bar_front',      unlock: { shopId: 'bar',    count: 1 } },
+  { id: 'mf_chisato_bar_2',    name: '豚骨拉面',  owner: 'chisato', attribute: ['kitchen'],           source: 'bar',    poolId: 'bar_kitchen',    unlock: { shopId: 'bar',    count: 3 } },
+  { id: 'mf_chisato_casino_1', name: '炸鸡定食',  owner: 'chisato', attribute: ['front'],             source: 'casino', poolId: 'casino_front',   unlock: { shopId: 'casino', count: 1 } },
+  { id: 'mf_chisato_casino_2', name: '咖喱饭',    owner: 'chisato', attribute: ['kitchen', 'front'],  source: 'casino', poolId: 'casino_front',   unlock: { shopId: 'casino', count: 3 } },
 
   // ---- 四宫宁月：无 ----
 ];
 
 // ============================================================
-//   2. 委托池（每池 4 条）
+//   2. 委托池（每池 4 条）—— 赤裸裸的黑道事务
 // ============================================================
 const COMMISSION_POOLS = {
+  // ---- 酒吧 · 后厨岗：料理事务（收保护费、摆平麻烦、处理欠债的） ----
   bar_kitchen: [
-    { title: '深夜食堂', desc: '一伙人指名要吃热食。',           base: { successRate: 0.75, income: 6000,  energyCost: 20, failPenalty: { reputationDelta: -3, energyPenalty: 15, moneyPenalty: 0    } } },
-    { title: '温饱的人心', desc: '让讨债的吃点东西再走。',       base: { successRate: 0.65, income: 8000,  energyCost: 25, failPenalty: { reputationDelta: -5, energyPenalty: 20, moneyPenalty: 500  } } },
-    { title: '悄悄开火', desc: '别让街口的人注意。',             base: { successRate: 0.80, income: 5000,  energyCost: 15, failPenalty: { reputationDelta: -2, energyPenalty: 10, moneyPenalty: 0    } } },
-    { title: '通宵营业', desc: '有人要在这里待到天亮。',         base: { successRate: 0.60, income: 12000, energyCost: 30, failPenalty: { reputationDelta: -8, energyPenalty: 25, moneyPenalty: 1000 } } },
+    { title: '东街的店没交钱',   desc: '这个月又拖。去把该拿的拿回来。',           base: { successRate: 0.75, income: 6000,  energyCost: 20, failPenalty: { reputationDelta: -3, energyPenalty: 15, moneyPenalty: 0    } } },
+    { title: '欠债的跑了',       desc: '人躲起来了。找到他，让他明白躲没用。',     base: { successRate: 0.65, income: 8000,  energyCost: 25, failPenalty: { reputationDelta: -5, energyPenalty: 20, moneyPenalty: 500  } } },
+    { title: '有人在店里闹事',   desc: '砸了两张桌子。你进去处理。',               base: { successRate: 0.80, income: 5000,  energyCost: 15, failPenalty: { reputationDelta: -2, energyPenalty: 10, moneyPenalty: 0    } } },
+    { title: '不听话的供应商',   desc: '货价坐地起价。去让他重新考虑。',           base: { successRate: 0.60, income: 12000, energyCost: 30, failPenalty: { reputationDelta: -8, energyPenalty: 25, moneyPenalty: 1000 } } },
   ],
+  // ---- 酒吧 · 前台岗：接待、谈判、挡人 ----
   bar_front: [
-    { title: '冷脸迎客', desc: '几个来路不明的客人要你亲自接待。', base: { successRate: 0.70, income: 7000,  energyCost: 18, failPenalty: { reputationDelta: -4, energyPenalty: 12, moneyPenalty: 0    } } },
-    { title: '挡一回', desc: '把不该进来的人挡在外面。',           base: { successRate: 0.55, income: 10000, energyCost: 22, failPenalty: { reputationDelta: -6, energyPenalty: 18, moneyPenalty: 800  } } },
-    { title: '包厢账房', desc: '有一桌要求单间结账。',             base: { successRate: 0.78, income: 5500,  energyCost: 15, failPenalty: { reputationDelta: -2, energyPenalty: 10, moneyPenalty: 0    } } },
-    { title: '散场整理', desc: '拖到打烊还赖着不走的人。',         base: { successRate: 0.68, income: 7500,  energyCost: 20, failPenalty: { reputationDelta: -3, energyPenalty: 15, moneyPenalty: 300  } } },
+    { title: '对家来谈地盘',     desc: '隔壁堂口的人坐在包厢。去谈，别丢面子。',   base: { successRate: 0.70, income: 7000,  energyCost: 18, failPenalty: { reputationDelta: -4, energyPenalty: 12, moneyPenalty: 0    } } },
+    { title: '条子来问话',       desc: '两个便衣坐在吧台。别让他们看出什么。',     base: { successRate: 0.55, income: 10000, energyCost: 22, failPenalty: { reputationDelta: -6, energyPenalty: 18, moneyPenalty: 800  } } },
+    { title: '有人在门口踩点',   desc: '同一辆车经过三次了。出去问清楚。',         base: { successRate: 0.78, income: 5500,  energyCost: 15, failPenalty: { reputationDelta: -2, energyPenalty: 10, moneyPenalty: 0    } } },
+    { title: '来路不明的客人',   desc: '没介绍人，直接要见管事的。你去接待。',     base: { successRate: 0.68, income: 7500,  energyCost: 20, failPenalty: { reputationDelta: -3, energyPenalty: 15, moneyPenalty: 300  } } },
   ],
+  // ---- 酒吧 · 洗碗岗：善后、清理、封口 ----
   bar_wash: [
-    { title: '无声收拾', desc: '后场有人倒下了，需要处理干净。',   base: { successRate: 0.72, income: 6000,  energyCost: 18, failPenalty: { reputationDelta: -4, energyPenalty: 12, moneyPenalty: 0    } } },
-    { title: '血迹', desc: '地上有些不该出现的东西。',             base: { successRate: 0.50, income: 14000, energyCost: 25, failPenalty: { reputationDelta: -10, energyPenalty: 25, moneyPenalty: 1500 } } },
-    { title: '清点酒杯', desc: '收拾得一干二净，不落痕迹。',       base: { successRate: 0.85, income: 4500,  energyCost: 14, failPenalty: { reputationDelta: -2, energyPenalty: 8,  moneyPenalty: 0    } } },
-    { title: '漂白', desc: '深夜，一大桶可疑的液体。',             base: { successRate: 0.62, income: 9000,  energyCost: 22, failPenalty: { reputationDelta: -6, energyPenalty: 20, moneyPenalty: 800  } } },
+    { title: '后巷有人倒了',     desc: '别问是谁。清干净，别留东西。',             base: { successRate: 0.72, income: 6000,  energyCost: 18, failPenalty: { reputationDelta: -4, energyPenalty: 12, moneyPenalty: 0    } } },
+    { title: '地上有不该有的',   desc: '拖把和漂白水。天亮前弄完。',               base: { successRate: 0.50, income: 14000, energyCost: 25, failPenalty: { reputationDelta: -10, energyPenalty: 25, moneyPenalty: 1500 } } },
+    { title: '包厢要恢复原样',   desc: '客人走了，东西也碎了。当没发生过。',       base: { successRate: 0.85, income: 4500,  energyCost: 14, failPenalty: { reputationDelta: -2, energyPenalty: 8,  moneyPenalty: 0    } } },
+    { title: '有人多嘴了',       desc: '让他把话咽回去。别用太明显的方式。',       base: { successRate: 0.62, income: 9000,  energyCost: 22, failPenalty: { reputationDelta: -6, energyPenalty: 20, moneyPenalty: 800  } } },
   ],
+
+  // ---- 赌场 · 后厨岗：稳住赌桌、处理出千、看管贵宾 ----
   casino_kitchen: [
-    { title: '荷官夜食', desc: '通宵赌桌的宵夜。',                 base: { successRate: 0.76, income: 7000,  energyCost: 20, failPenalty: { reputationDelta: -3, energyPenalty: 15, moneyPenalty: 0    } } },
-    { title: '贵宾席', desc: 'VIP 包厢点名要吃特制。',              base: { successRate: 0.58, income: 15000, energyCost: 28, failPenalty: { reputationDelta: -8, energyPenalty: 25, moneyPenalty: 1200 } } },
-    { title: '筹码换饭', desc: '用筹码结账的客人。',                base: { successRate: 0.80, income: 5000,  energyCost: 15, failPenalty: { reputationDelta: -2, energyPenalty: 10, moneyPenalty: 0    } } },
-    { title: '连场供应', desc: '赌局还要继续，饭也不能停。',        base: { successRate: 0.66, income: 9500,  energyCost: 24, failPenalty: { reputationDelta: -5, energyPenalty: 20, moneyPenalty: 500  } } },
+    { title: '通宵的赌桌',       desc: '客人不肯走。送点吃的，稳住他。',           base: { successRate: 0.76, income: 7000,  energyCost: 20, failPenalty: { reputationDelta: -3, energyPenalty: 15, moneyPenalty: 0    } } },
+    { title: 'VIP 输光了',       desc: '包厢里在砸东西。进去让他冷静。',           base: { successRate: 0.58, income: 15000, energyCost: 28, failPenalty: { reputationDelta: -8, energyPenalty: 25, moneyPenalty: 1200 } } },
+    { title: '拿筹码结账',       desc: '有人拿筹码换东西。别让他知道不值钱。',     base: { successRate: 0.80, income: 5000,  energyCost: 15, failPenalty: { reputationDelta: -2, energyPenalty: 10, moneyPenalty: 0    } } },
+    { title: '桌上有人出千',     desc: '手法很脏。让他把赢的吐出来。',             base: { successRate: 0.66, income: 9500,  energyCost: 24, failPenalty: { reputationDelta: -5, energyPenalty: 20, moneyPenalty: 500  } } },
   ],
+  // ---- 赌场 · 前台岗：看场、镇场、接待大客户 ----
   casino_front: [
-    { title: '接客', desc: '生面孔，需要有经验的人稳住。',         base: { successRate: 0.70, income: 8000,  energyCost: 20, failPenalty: { reputationDelta: -4, energyPenalty: 15, moneyPenalty: 400  } } },
-    { title: '看场', desc: '有人在闹事，你去“处理”一下。',         base: { successRate: 0.55, income: 12000, energyCost: 25, failPenalty: { reputationDelta: -7, energyPenalty: 22, moneyPenalty: 1000 } } },
-    { title: '引路', desc: '带几位贵客走内部通道。',               base: { successRate: 0.82, income: 5500,  energyCost: 15, failPenalty: { reputationDelta: -2, energyPenalty: 10, moneyPenalty: 0    } } },
-    { title: '洗牌', desc: '桌上有位不太规矩的玩家。',             base: { successRate: 0.64, income: 9000,  energyCost: 22, failPenalty: { reputationDelta: -5, energyPenalty: 18, moneyPenalty: 600  } } },
+    { title: '生面孔进场',       desc: '没介绍人，直接坐下来。去探探底。',         base: { successRate: 0.70, income: 8000,  energyCost: 20, failPenalty: { reputationDelta: -4, energyPenalty: 15, moneyPenalty: 400  } } },
+    { title: '有人在闹场',       desc: '输不起，掀了桌子。把人带出去。',           base: { successRate: 0.55, income: 12000, energyCost: 25, failPenalty: { reputationDelta: -7, energyPenalty: 22, moneyPenalty: 1000 } } },
+    { title: '贵客要走内部通道', desc: '不能让人看见。带路，别多话。',             base: { successRate: 0.82, income: 5500,  energyCost: 15, failPenalty: { reputationDelta: -2, energyPenalty: 10, moneyPenalty: 0    } } },
+    { title: '桌上有人不规矩',   desc: '手不干净，眼也不老实。去警告。',           base: { successRate: 0.64, income: 9000,  energyCost: 22, failPenalty: { reputationDelta: -5, energyPenalty: 18, moneyPenalty: 600  } } },
   ],
+  // ---- 赌场 · 采购岗：接货、走私、黑市交割 ----
   casino_buy: [
-    { title: '后巷采购', desc: '要的东西不好明面买。',             base: { successRate: 0.68, income: 7000,  energyCost: 20, failPenalty: { reputationDelta: -4, energyPenalty: 15, moneyPenalty: 300  } } },
-    { title: '黑市交割', desc: '一手交钱一手交货。',               base: { successRate: 0.50, income: 14000, energyCost: 28, failPenalty: { reputationDelta: -9, energyPenalty: 25, moneyPenalty: 1500 } } },
-    { title: '寻常物资', desc: '大批量进货，别惹眼。',             base: { successRate: 0.85, income: 5000,  energyCost: 16, failPenalty: { reputationDelta: -2, energyPenalty: 10, moneyPenalty: 0    } } },
-    { title: '一箱红酒', desc: '客人指定要某个年份。',             base: { successRate: 0.74, income: 8000,  energyCost: 20, failPenalty: { reputationDelta: -4, energyPenalty: 15, moneyPenalty: 400  } } },
+    { title: '后巷接货',         desc: '车到了。别让人看见。搬完就走。',           base: { successRate: 0.68, income: 7000,  energyCost: 20, failPenalty: { reputationDelta: -4, energyPenalty: 15, moneyPenalty: 300  } } },
+    { title: '黑市交割',         desc: '一手钱一手货。对方不一定守规矩。',         base: { successRate: 0.50, income: 14000, energyCost: 28, failPenalty: { reputationDelta: -9, energyPenalty: 25, moneyPenalty: 1500 } } },
+    { title: '大批货要过街',     desc: '不能太显眼。分批走，别走大路。',           base: { successRate: 0.85, income: 5000,  energyCost: 16, failPenalty: { reputationDelta: -2, energyPenalty: 10, moneyPenalty: 0    } } },
+    { title: '有人指定要的',     desc: '来路不明。别问，送到就行。',               base: { successRate: 0.74, income: 8000,  energyCost: 20, failPenalty: { reputationDelta: -4, energyPenalty: 15, moneyPenalty: 400  } } },
   ],
+
+  // ---- 蓬咲预设 · 洗碗岗：一个人也能搞定的善后 ----
   preset_wash: [
-    { title: '阴暗清场', desc: '一个人也能搞定的事。',             base: { successRate: 0.80, income: 5000,  energyCost: 15, failPenalty: { reputationDelta: -3, energyPenalty: 10, moneyPenalty: 0    } } },
-    { title: '角落处理', desc: '别让任何人看到你。',               base: { successRate: 0.60, income: 10000, energyCost: 22, failPenalty: { reputationDelta: -7, energyPenalty: 18, moneyPenalty: 800  } } },
-    { title: '静默打理', desc: '一个人，很安静。',                 base: { successRate: 0.85, income: 4500,  energyCost: 12, failPenalty: { reputationDelta: -2, energyPenalty: 8,  moneyPenalty: 0    } } },
-    { title: '封口', desc: '有些东西不能流出去。',                 base: { successRate: 0.55, income: 12000, energyCost: 25, failPenalty: { reputationDelta: -9, energyPenalty: 22, moneyPenalty: 1000 } } },
+    { title: '一个人清场',       desc: '没人帮忙。天亮前必须干净。',               base: { successRate: 0.80, income: 5000,  energyCost: 15, failPenalty: { reputationDelta: -3, energyPenalty: 10, moneyPenalty: 0    } } },
+    { title: '角落里的东西',     desc: '别让任何人看到你碰它。',                   base: { successRate: 0.60, income: 10000, energyCost: 22, failPenalty: { reputationDelta: -7, energyPenalty: 18, moneyPenalty: 800  } } },
+    { title: '静默收尾',         desc: '不能有声音。不能有痕迹。',                 base: { successRate: 0.85, income: 4500,  energyCost: 12, failPenalty: { reputationDelta: -2, energyPenalty: 8,  moneyPenalty: 0    } } },
+    { title: '让话止住',         desc: '有人知道太多了。让他闭嘴。',               base: { successRate: 0.55, income: 12000, energyCost: 25, failPenalty: { reputationDelta: -9, energyPenalty: 22, moneyPenalty: 1000 } } },
   ],
+  // ---- 蓬咲预设 · 后厨岗：给帮派的人做吃的、稳住场面 ----
   preset_kitchen: [
-    { title: '角落小菜', desc: '给不挑食的人。',                   base: { successRate: 0.70, income: 6000,  energyCost: 18, failPenalty: { reputationDelta: -3, energyPenalty: 12, moneyPenalty: 0    } } },
-    { title: '冷盘', desc: '不冒热气，不起眼。',                   base: { successRate: 0.78, income: 7000,  energyCost: 20, failPenalty: { reputationDelta: -3, energyPenalty: 12, moneyPenalty: 0    } } },
-    { title: '最后一份', desc: '收摊前的最后一单。',               base: { successRate: 0.85, income: 4500,  energyCost: 14, failPenalty: { reputationDelta: -2, energyPenalty: 8,  moneyPenalty: 0    } } },
-    { title: '不合口味', desc: '有人嫌菜不够。',                   base: { successRate: 0.60, income: 9000,  energyCost: 22, failPenalty: { reputationDelta: -5, energyPenalty: 18, moneyPenalty: 400  } } },
+    { title: '给小弟们弄点吃的', desc: '一帮人蹲在后巷。别让他们饿着闹事。',       base: { successRate: 0.70, income: 6000,  energyCost: 18, failPenalty: { reputationDelta: -3, energyPenalty: 12, moneyPenalty: 0    } } },
+    { title: '冷盘稳住人',       desc: '包厢里在等消息。上点东西，拖住。',         base: { successRate: 0.78, income: 7000,  energyCost: 20, failPenalty: { reputationDelta: -3, energyPenalty: 12, moneyPenalty: 0    } } },
+    { title: '最后一单',         desc: '打烊前还有人要。做完就收。',               base: { successRate: 0.85, income: 4500,  energyCost: 14, failPenalty: { reputationDelta: -2, energyPenalty: 8,  moneyPenalty: 0    } } },
+    { title: '有人嫌不够',       desc: '客人不满意。别让他把话说大。',             base: { successRate: 0.60, income: 9000,  energyCost: 22, failPenalty: { reputationDelta: -5, energyPenalty: 18, moneyPenalty: 400  } } },
   ],
 };
 
