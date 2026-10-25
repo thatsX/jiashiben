@@ -495,6 +495,11 @@ function openCommissionDetail(uid) {
       if (typeof MAFIA_QUESTS_SCRIPTS !== 'undefined' && MAFIA_QUESTS_SCRIPTS['E']) {
         if (typeof playCutscene === 'function') {
           playCutscene({ lines: MAFIA_QUESTS_SCRIPTS['E'] }, () => {
+            if (state.isMafia && !MAFIA_QUESTS[state.mafiaQuestIdx]) {
+              closeModal();
+              startFinalBattle();
+              return;
+            }
             afterCommissionHandled();
           });
         } else {

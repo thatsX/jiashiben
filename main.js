@@ -34,10 +34,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // ---------- 结局判定 ----------
 function checkEnding() {
+  // 破产过场保留
   if (state.cash < 0) {
     state.bankruptCount++;
-
-    // 破产过场：桥洞 → 卧室重开 → 进首页
     playCutscenes([BANKRUPT_SCRIPT, OPENING_BEDROOM_SCRIPT], () => {
       resetGame();
       switchPage('home');
@@ -45,14 +44,19 @@ function checkEnding() {
     return;
   }
 
+  // ★ 新增：如果已经在无尽模式，直接跳过所有结局判定
+  if (state.endlessMode) {
+    renderPage('home');
+    renderStatus();
+    return;
+  }
+
   // 极道线特殊判定
   if (state.isMafia) {
-    // 如果 4 个任务（0-3）全做完了，就进决战
-    if (state.mafiaQuestIdx >= MAFIA_QUESTS.length) {
+    if (!MAFIA_QUESTS[state.mafiaQuestIdx] || state.mafiaQuestIdx >= MAFIA_QUESTS.length) {
       startFinalBattle();
       return;
     }
-    // 否则继续日常经营
     renderPage('home');
     renderStatus();
     return;
@@ -60,12 +64,11 @@ function checkEnding() {
 
   // 日常线原版判定
   if (state.loan <= 0 && state.cash >= CONFIG.targetProfit) {  
-    // 正常结局
     if (state.week <= 52 && state.achievements.indexOf('week52') < 0) {
       state.achievements.push('week52');
     }
     playCutscene(SUCCESS_SCRIPT, () => {
-      showEndingMenu();
+      showEndlessChoice('normal'); // ★ 改为新的选择界面
     });
     return;
   }
@@ -185,7 +188,8 @@ function init() {
 // ============================================================
 //   结局菜单（成功 / 破产后显示）恭喜你带领咖喱人，成功传播家是本文化，夺回NEST！
 // ============================================================
-function showEndingMenu() {
+function showEndlessChoice(type) {
+  const isMafia = type === 'mafia';
   const achieved = ACHIEVEMENTS.filter(a => state.achievements.indexOf(a.id) >= 0);
   const listHTML = ACHIEVEMENTS.map(a => {
     const got = state.achievements.indexOf(a.id) >= 0;
@@ -196,8 +200,8 @@ function showEndingMenu() {
 
   showModal(`
     <div style="text-align:center;padding:10px 0">
-      <div style="font-size:44px">🎉</div>
-      <h2 style="margin-top:10px;color:#d32f2f">恭喜你带领咖喱人成功传播家是本文化，夺回NEST！</h2>
+      <div style="font-size:44px">${isMafia ? '🕶️' : '🎉'}</div>
+      <h2 style="margin-top:10px;color:#d32f2f">${isMafia ? '恭喜你击败老爹，统治了地下街区！' : '恭喜你带领咖喱人成功传播家是本文化，夺回NEST！'}</h2>
       <p style="margin-top:6px;font-size:13px;color:#666">
         第 ${state.week - 1} 周 · 成就 ${achieved.length}/${ACHIEVEMENTS.length}
       </p>
@@ -205,9 +209,22 @@ function showEndingMenu() {
     <div style="background:#fff;border-radius:8px;padding:10px;margin:10px 0">
       ${listHTML}
     </div>
-    <button style="width:100%;margin-top:12px" onclick="restartGame()">🔄 重新开始</button>
+    <div style="background:#fff8e1; border:2px dashed #ffd54f; padding:10px; border-radius:8px; margin-bottom:12px; text-align:left; font-size:12px; line-height:1.5;">
+      <b>无尽模式说明：</b><br>
+      保持当前状态继续经营。没有主线目标，没有贷款压力，只为挑战更高的周数与收益。
+    </div>
+    <button style="width:100%;margin-bottom:8px;background:#ffd54f" onclick="startEndlessMode()">♾️ 开启无尽模式</button>
+    <button style="width:100%;background:#e0e0e0" onclick="restartGame()">🔄 重新开始</button>
   `);
   document.getElementById('modal-btn').style.display = 'none';
+}
+
+function startEndlessMode() {
+  state.endlessMode = true;
+  closeModal();
+  renderPage('home');
+  renderStatus();
+  alert('无尽模式已开启！继续享受 FAMILY 的经营日常吧！');
 }
 
 function restartGame() {

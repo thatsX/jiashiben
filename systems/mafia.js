@@ -177,7 +177,7 @@ function startFinalBattle() {
       clearInterval(qteTimer);
       closeModal();
       playCutscene(GODFATHER_ENDING_SCRIPT, () => {
-        showEndingMenu();
+        showEndlessChoice();
       });
     }
   };

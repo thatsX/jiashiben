@@ -232,6 +232,13 @@ function renderHome() {
         ${q.type !== 'mafia_rep' && q.type !== 'live_hold' ? `<div class="row"><span class="label">极道声望</span><span class="value" style="color:#b8860b">${state.mafiaRep || 0}</span></div>` : ''}
         <div class="row"><span class="label">截止周数</span><span class="value" style="color:${state.week >= state.mafiaDeadline - 1 ? '#ff9800' : '#333'}">第 ${state.mafiaDeadline} 周</span></div>
       `;
+    } else {
+      // ★ 新增：无尽模式下的显示（当任务做完，q变成undefined时）
+      previewHTML = `
+        <div class="row" style="color:#b8860b;font-weight:bold"><span class="label">极道目标</span><span class="value">已通关</span></div>
+        <div class="row"><span class="label">当前模式</span><span class="value" style="color:#4caf50">♾️ 无尽经营</span></div>
+        <div class="row"><span class="label">极道声望</span><span class="value" style="color:#b8860b">${state.mafiaRep || 0}</span></div>
+      `;
     }
   } else if (canOperate && state.menu.length > 0) {
     const preview = calculateBusiness(true);

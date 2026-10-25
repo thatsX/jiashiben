@@ -658,6 +658,12 @@ function showSettlementDialogue(settleData) {
     // 2. 如果有极道任务的过场，先播过场
     if (pendingMafiaCutscene) {
       playCutscene(pendingMafiaCutscene, () => {
+        // ★ 新增：如果所有极道任务已完成（当前任务为空），直接进决战，不再进夜间！
+        if (state.isMafia && !MAFIA_QUESTS[state.mafiaQuestIdx]) {
+          startFinalBattle();
+          return;
+        }
+        
         // ★ 过场后先问夜间，再触发好感度
         if (typeof maybeStartNightBusiness === 'function') {
           maybeStartNightBusiness(() => {

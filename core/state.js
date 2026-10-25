@@ -68,6 +68,8 @@ let state = {
   betting: [],            // 押注记录：{ fighterId, amount }
   weeklyBets: 0,          // 本周已押注次数
   liveCooldown: 0,        // 地下Live冷却周数
+
+  endlessMode: false,
   },
 };
 

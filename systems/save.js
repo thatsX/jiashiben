@@ -81,6 +81,7 @@ function applySaveData(data) {
   state.unlockedMafiaRecipes = state.unlockedMafiaRecipes || [];  // ★ 老存档兼容
   state.mafiaCharWorkCount = state.mafiaCharWorkCount || {};  // ★ 老存档兼容
   state.night = null;  // ★ 读档重置夜间经营（懒初始化）
+  state.endlessMode = state.endlessMode || false;
 
   // 2. 恢复角色状态
   if (data.characters) {

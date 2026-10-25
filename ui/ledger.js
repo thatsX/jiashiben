@@ -23,6 +23,15 @@ function renderLedger() {
           <div class="ledger-row"><span>截止时间</span><span style="color:#ff5252">第 ${state.mafiaDeadline} 周</span></div>
         </div>
       `;
+    } else {
+      // ★ 新增：无尽模式的极道面板
+      mafiaQuestHTML = `
+        <h3 style="margin-top:16px;color:#b8860b">当前状态</h3>
+        <div class="card" style="cursor:default;background:#222;border-color:#b8860b;color:#e0e0e0">
+          <div class="ledger-row"><span>极道目标</span><span style="color:#4caf50;font-weight:bold">全部完成</span></div>
+          <div class="ledger-row"><span>当前模式</span><span>无尽经营</span></div>
+        </div>
+      `;
     }
   }
 
