@@ -323,19 +323,42 @@ function doSettle(restaurantOpen) {
     if (q) {
       if (q.type === 'cash') q.current = state.cash;
       if (q.type === 'live_hold') q.current = state.mafiaRep;
+      // ★ A/B/C 已经在夜间加了，这里不用同步
 
-      const isTargetMet = (q.type === 'live_hold')
-        ? (q.current >= q.target && q.liveDone === true)
-        : (q.current >= q.target);
+      // 判定是否达标
+      let isTargetMet = false;
+      if (q.type === 'live_hold') {
+        isTargetMet = (q.current >= q.target && q.liveDone === true);
+      } else if (q.type === 'event_auto') {
+        // ★ 任务 D 特殊处理：不需要数值判定，只要触发就算完成
+        // 如果这周夜间已经自动播过了，我们会打上标记
+        isTargetMet = (q.current >= q.target);
+      } else {
+        isTargetMet = (q.current >= q.target);
+      }
 
+      // 超时判定
       if (state.week >= state.mafiaDeadline && !isTargetMet) {
         mafiaFailMsg = `任务【${q.title}】超时未完成，被极道扫地出门。`;
       }
-
+      
+      // 推进判定
       if (isTargetMet && !mafiaFailMsg) {
-        const script = MAFIA_QUESTS_SCRIPTS[state.mafiaQuestIdx];
-        state.mafiaQuestIdx++;
+        const currentQId = q.id;
+        let script = null;
 
+        // ★ 获取对应任务的过场动画
+        if (typeof MAFIA_QUESTS_SCRIPTS !== 'undefined' && MAFIA_QUESTS_SCRIPTS[currentQId]) {
+          script = MAFIA_QUESTS_SCRIPTS[currentQId];
+        }
+
+        // 发奖励
+        if (q.reward && q.reward.reputation) {
+          state.mafiaRep += q.reward.reputation;
+        }
+
+        state.mafiaQuestIdx++;
+        
         if (state.mafiaQuestIdx < MAFIA_QUESTS.length) {
           const nextQ = MAFIA_QUESTS[state.mafiaQuestIdx];
           state.mafiaDeadline = state.week + nextQ.deadlineAdd;

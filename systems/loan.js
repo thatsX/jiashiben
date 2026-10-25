@@ -256,6 +256,7 @@ function showDevPanel() {
       <button onclick="cheatAddReputation()" style="background:#f8bbd0">⭐ 声誉拉满 100</button>
       <button onclick="cheatFullAffinity()" style="background:#ffcdd2">❤️ 全员好感拉满 100</button>
       <button onclick="cheatAddMafiaRep()" style="background:#d7ccc8">🕶️ 极道声望 + 100</button>
+      <button onclick="cheatSkipMafiaQuest()" style="background:#ffab91">⏭️ 跳过当前极道任务</button>
     </div>
 
     <!-- 自定义修改 -->
@@ -440,4 +441,58 @@ function cheatAddMafiaRep() {
   renderStatus();
   alert(`极道声望 +100（当前: ${state.mafiaRep}）`);
   showDevPanel();
+}
+
+// ============================================================
+//   快捷作弊：跳过当前极道任务
+// ============================================================
+function cheatSkipMafiaQuest() {
+  if (!state.isMafia) {
+    alert('当前不在极道线！');
+    return;
+  }
+  if (typeof MAFIA_QUESTS === 'undefined') {
+    alert('未加载极道任务数据。');
+    return;
+  }
+
+  const q = MAFIA_QUESTS[state.mafiaQuestIdx];
+  if (!q) {
+    alert('当前已经是最后一个任务（或没有任务）。');
+    return;
+  }
+
+  // 如果是最终决战（原任务3），直接跳过可能会卡剧情
+  if (q.type === 'cash' || q.id === 3) {
+    alert('最终决战任务建议正常游玩体验，或直接修改现金达标。');
+    return;
+  }
+
+  // 强行完成当前任务进度
+  q.current = q.target;
+  if (q.liveDone !== undefined) q.liveDone = true;
+
+  // 推进到下一个任务
+  state.mafiaQuestIdx++;
+  
+  let msg = `已跳过任务【${q.title}】。\n`;
+  
+  if (state.mafiaQuestIdx < MAFIA_QUESTS.length) {
+    const nextQ = MAFIA_QUESTS[state.mafiaQuestIdx];
+    state.mafiaDeadline = state.week + nextQ.deadlineAdd;
+    msg += `当前任务已切换为【${nextQ.title}】。`;
+  } else {
+    msg += '所有极道任务已完成！';
+  }
+
+  // 如果正在夜间经营，顺手把夜间状态重置以防卡死
+  if (state.night && state.night.active) {
+    state.night.active = false;
+    state.night.phase = 'idle';
+  }
+
+  alert(msg);
+  renderStatus();
+  renderPage('home');
+  showDevPanel(); // 刷新作弊面板
 }

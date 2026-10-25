@@ -78,6 +78,35 @@ function maybeStartNightBusiness(onDone) {
 function beginNight() {
   ensureNightState();
   refreshUnlockedMafiaRecipes();
+  
+  // ★ 任务 D 自动触发拦截
+  if (state.isMafia && typeof MAFIA_QUESTS !== 'undefined') {
+    const q = MAFIA_QUESTS[state.mafiaQuestIdx];
+    if (q && q.id === 'D') {
+      closeModal();
+      
+      // ★ 直接推进任务指针，防止结算时二次触发
+      state.mafiaQuestIdx++; 
+      if (state.mafiaQuestIdx < MAFIA_QUESTS.length) {
+        const nextQ = MAFIA_QUESTS[state.mafiaQuestIdx];
+        state.mafiaDeadline = state.week + nextQ.deadlineAdd;
+      }
+
+      const script = (typeof MAFIA_QUESTS_SCRIPTS !== 'undefined' && MAFIA_QUESTS_SCRIPTS['D']) 
+        ? MAFIA_QUESTS_SCRIPTS['D'] 
+        : [{ text: '老爹派的警察来了，有意想不到的人解决了问题。' }];
+
+      if (typeof playCutscene === 'function') {
+        playCutscene({ lines: script }, () => {
+          alert('【宁月】震慑了警察，今晚的突发状况解决了。夜间经营提前结束。');
+          finishNight();
+        });
+      } else {
+        finishNight();
+      }
+      return;
+    }
+  }
 
   //   原打工 / 原岗位全部清空，避免白天状态混入夜间
   characters.forEach(c => {
@@ -128,8 +157,17 @@ function openNightAssign() {
     `;
   }).join('');
 
+  const isQuestE = state.isMafia && typeof MAFIA_QUESTS !== 'undefined' && MAFIA_QUESTS[state.mafiaQuestIdx]?.id === 'E';
+  const questETip = isQuestE ? `
+    <div style="background:#ffebee;border:1px solid #d32f2f;padding:8px;border-radius:6px;margin-bottom:10px;font-size:12px;color:#d32f2f;line-height:1.5">
+      <b>⚠ 教父的家训（特殊委托）：</b><br>
+      似乎有某个家庭成员有话要说。必须安排<b>蕾叶</b>上岗，如果那人有空的话自然会带着委托前来……
+    </div>
+  ` : '';
+
   showModal(`
     <h3>🌙 今晚排班</h3>
+    ${questETip}
     <p style="font-size:12px;color:#666;margin-bottom:10px">
       每个岗位一人，同一角色不可兼任。确认后锁定。
     </p>
@@ -246,6 +284,36 @@ function confirmNightMenu() {
   }
 
   state.night.commissions = generateNightCommissions();
+  // ★ 任务 E 特殊判定：注入心玖委托人
+  if (state.isMafia && typeof MAFIA_QUESTS !== 'undefined') {
+    const q = MAFIA_QUESTS[state.mafiaQuestIdx];
+    if (q && q.id === 'E' && q.current < q.target) {
+      const a = state.night.assignments;
+      const leyeIn = Object.values(a).includes('leye');
+      const kokonoIn = Object.values(a).includes('kokono');
+      
+      if (leyeIn && !kokonoIn) {
+        // 强行插入一个心玖的特殊委托
+        state.night.commissions.push({
+          id: 'nc_special_kokono',
+          fromRecipe: 'special_kokono',
+          title: '家庭会议',
+          desc: '心玖抱臂站在门口，手里拿着一本厚厚的家训。',
+          assignee: 'leye', // 由蕾叶接取
+          successRate: 1,
+          income: 0,
+          energyCost: 0,
+          failPenalty: { reputationDelta: 0, energyPenalty: 0, moneyPenalty: 0 },
+          status: 'pending',
+          leftTrace: false,
+          _spriteId: 'kokono', // 用角色立绘，如果 assets/customers 里没有心玖，等会儿加个兜底
+          _pos: { x: 50, y: 70 }, // 站中间
+          isQuestE: true
+        });
+      }
+    }
+  }
+
   state.night.phase = 'taking';
 
   closeModal();
@@ -323,6 +391,7 @@ function buildCommission(tpl, recipe) {
     title: tpl.title,
     desc: tpl.desc,
     assignee: recipe.owner,
+    recipeAttr: recipe.attribute,
     successRate,
     income,
     energyCost,
@@ -403,6 +472,51 @@ function openCommissionDetail(uid) {
   const c = state.night.commissions.find(x => x.id === uid);
   if (!c || c.status !== 'pending') return;
 
+  // ★ 任务 E 拦截，直接启动小游戏
+  if (c.isQuestE) {
+    closeModal();
+    mgFinishCallback = function(win) {
+      // 标记委托完成
+      c.status = 'accepted';
+      
+      // 推进极道任务
+      if (typeof MAFIA_QUESTS !== 'undefined') {
+        const q = MAFIA_QUESTS[state.mafiaQuestIdx];
+        if (q && q.id === 'E') {
+          q.current = q.target; // 强制达成，下周结算推进
+          state.mafiaRep += win ? 120 : 100;
+          state.mafiaQuestIdx++;
+          if (state.mafiaQuestIdx < MAFIA_QUESTS.length) {
+            const nextQ = MAFIA_QUESTS[state.mafiaQuestIdx];
+            state.mafiaDeadline = state.week + nextQ.deadlineAdd;
+          }
+        }
+      }
+      if (typeof MAFIA_QUESTS_SCRIPTS !== 'undefined' && MAFIA_QUESTS_SCRIPTS['E']) {
+        if (typeof playCutscene === 'function') {
+          playCutscene({ lines: MAFIA_QUESTS_SCRIPTS['E'] }, () => {
+            afterCommissionHandled();
+          });
+        } else {
+          afterCommissionHandled();
+        }
+      } else {
+        afterCommissionHandled();
+      }
+    };
+    
+    // 需要引入小游戏脚本并启动
+    if (typeof startKokonoMinigame === 'function') {
+      startKokonoMinigame(mgFinishCallback);
+    } else {
+      alert('小游戏模块未加载！');
+      c.status = 'accepted';
+      afterCommissionHandled();
+    }
+    return;
+  }
+
+
   const assignee = characters.find(x => x.id === c.assignee);
   const canAccept = assignee && assignee.current.energy >= c.energyCost;
 
@@ -441,12 +555,39 @@ function acceptCommission(uid) {
   if (!assignee || assignee.current.energy < c.energyCost) return;
 
   assignee.current.energy = Math.max(0, assignee.current.energy - c.energyCost);
+
+  // ★ 任务 A/B/C 的进度判定
+  if (state.isMafia && typeof MAFIA_QUESTS !== 'undefined') {
+    const q = MAFIA_QUESTS[state.mafiaQuestIdx];
+    if (q) {
+      // 任务 A & B：特定角色的特定岗位委托
+      if (q.type === 'commission_assignee' && q.assignee === c.assignee) {
+        // 检查岗位属性是否匹配
+        const matchAttr = q.filterAttr.some(attr => c.recipeAttr && c.recipeAttr.indexOf(attr) >= 0);
+        if (matchAttr) {
+          q.current = (q.current || 0) + 1;
+        }
+      }
+      // 任务 C：黑道累计收入
+      if (q.type === 'mafia_income') {
+        // 注意：这里先累加，失败的话要扣除吗？文档说“建议只算正向收入”，所以我们在成功分支里加
+        // 但是成功判断在下面，这里先不处理 C，转移到下面
+      }
+    }
+  }
+
   const success = Math.random() < c.successRate;
   c.status = 'accepted';
 
   if (success) {
     state.cash += c.income;
     state.mafiaRep += 20;
+    if (state.isMafia && typeof MAFIA_QUESTS !== 'undefined') {
+      const q = MAFIA_QUESTS[state.mafiaQuestIdx];
+      if (q && q.type === 'mafia_income') {
+        q.current = (q.current || 0) + c.income;
+      }
+    }
     showModal(`
       <div style="text-align:center;padding:10px 0">
         <div style="font-size:48px">✅</div>
@@ -604,6 +745,9 @@ function renderNightFamily() {
   const a = (state.night && state.night.assignments) || {};
   const assignedIds = Object.keys(a).map(k => a[k]).filter(Boolean);
 
+  const isQuestEActive = (state.night && state.night.commissions) 
+    ? state.night.commissions.some(c => c.isQuestE) : false;
+
   // ★ 固定床位（5 人各一格，2 行 3+2）
   const BEDS = [
     { id: 'leye',     x: 20, y: 38 },
@@ -618,8 +762,10 @@ function renderNightFamily() {
     if (!c) return '';
     const isWorking = assignedIds.indexOf(c.id) >= 0;
 
+    const isAway = assignedIds.indexOf(c.id) >= 0 || (c.id === 'kokono' && isQuestEActive);
+
     // 排班去了 → 空床
-    if (isWorking) {
+    if (isAway) {
       return `
         <div style="position:absolute;left:${bed.x}%;top:${bed.y}%;transform:translate(-50%,-50%);
                     width:110px;height:120px;border:2px dashed rgba(255,255,255,0.3);
@@ -657,15 +803,22 @@ function renderNightFamily() {
       : null;
     const energyPct = (c.current.energy / c.traits.energyMax) * 100;
 
+    let statusTag = '';
+    if (stationLabel) {
+      statusTag = `<span class="status-tag working">夜间 · ${stationLabel}</span>`;
+    } else if (c.id === 'kokono' && isQuestEActive) {
+      statusTag = `<span class="status-tag working" style="background:#ffebee;color:#d32f2f;border-color:#d32f2f">在楼下等着清算你呢……</span>`;
+    } else {
+      statusTag = `<span class="status-tag resting">睡觉中</span>`;
+    }
+
     return `
-      <div class="status-card" style="cursor:pointer" onclick="${stationId ? 'nightTalkToChar' : 'nightSleepTalk'}('${c.id}')">
+      <div class="status-card" style="cursor:pointer" onclick="${stationLabel ? 'nightTalkToChar' : (c.id === 'kokono' && isQuestEActive ? 'closeModal()' : 'nightSleepTalk')}('${c.id}')">
         <div class="status-avatar">${avatarHTML(c.id, 'chars', 52)}</div>
         <div class="status-info">
           <div class="status-name">
             <b>${c.name}</b>
-            ${stationLabel
-              ? `<span class="status-tag working">夜间 · ${stationLabel}</span>`
-              : `<span class="status-tag resting">睡觉中</span>`}
+            ${statusTag}
           </div>
           <div class="status-energy">
             <div class="status-energy-bar">
