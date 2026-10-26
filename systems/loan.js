@@ -257,6 +257,7 @@ function showDevPanel() {
       <button onclick="cheatFullAffinity()" style="background:#ffcdd2">❤️ 全员好感拉满 100</button>
       <button onclick="cheatAddMafiaRep()" style="background:#d7ccc8">🕶️ 极道声望 + 100</button>
       <button onclick="cheatSkipMafiaQuest()" style="background:#ffab91">⏭️ 跳过当前极道任务</button>
+      <button onclick="cheatStartMinigame()" style="background:#e1bee7">🎮 触发弹幕小游戏 (仅测试)</button>
     </div>
 
     <!-- 自定义修改 -->
@@ -495,4 +496,31 @@ function cheatSkipMafiaQuest() {
   renderStatus();
   renderPage('home');
   showDevPanel(); // 刷新作弊面板
+}
+
+// ============================================================
+//   快捷作弊：单独测试任务 E 小游戏
+// ============================================================
+function cheatStartMinigame() {
+  closeModal(); // 关掉作弊面板
+
+  // 确保环境存在，防止报错
+  if (!state.night) {
+    state.night = { active: false, phase: 'idle' };
+  }
+
+  // 定义测试模式下的专用回调
+  window.mgFinishCallback = function(win) {
+    // 测试模式下，不扣声望、不推进任务
+    alert(win ? '【测试模式】小游戏胜利！' : '【测试模式】小游戏失败！');
+    renderPage('home');
+    renderStatus();
+  };
+
+  // 启动小游戏
+  if (typeof startKokonoMinigame === 'function') {
+    startKokonoMinigame(window.mgFinishCallback);
+  } else {
+    alert('小游戏模块 (systems/minigame.js) 未加载！');
+  }
 }
