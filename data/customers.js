@@ -265,6 +265,18 @@ const CUSTOMERS = [
     once: true,
     chance: 0,
   },
+  {
+    id: 'zaojie',
+    name: '枣姐',
+    type: 'special',
+    minWeek: 9999, // 防止进系统普通随机池
+  },
+  {
+    id: 'dounai',
+    name: '豆乃',
+    type: 'special',
+    minWeek: 9999,
+  },
   // ============================================================
   //  ★★★ 特殊客人模板 ★★★
   //  复制下面这整段，改改就能加新客人

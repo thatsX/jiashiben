@@ -141,7 +141,14 @@ function updateCustomersDOM() {
 function talkToCustomerByUid(uid) {
   const c = state.customers.find(x => x.uid === uid);
   if (!c) return;
-
+  if (c.id === 'zaojie' || c.id === 'dounai') {
+    if (c.talked) {
+      showModal('<p style="text-align:center;color:#888">她们还在热烈地讨论作曲。</p>');
+      return;
+    }
+    startZaojieEvent();
+    return;
+  }
   if (c.id === 'banquet_client') {
     openBanquetDialog(c);
     return;
@@ -384,6 +391,41 @@ function applySingleEffect(e) {
 // ============================================================
 function generateSpecialCustomers() {
 
+  // ★ 枣姐与豆乃生成逻辑
+  if (state.week >= 4 && !state.seenCustomers.includes('zaojie') && !state.isMafia) {
+    if (Math.random() < 0.4) { 
+      const pairs = [['c1','c2'], ['c3','c4'], ['c5','c6'], ['c7','c8']];
+      const occupied = new Set(state.customers.map(c => c.chairId).filter(Boolean));
+      
+      for (let pair of pairs) {
+        if (!occupied.has(pair[0]) && !occupied.has(pair[1])) {
+          const chair1 = CHAIRS.find(c => c.id === pair[0]);
+          const chair2 = CHAIRS.find(c => c.id === pair[1]);
+          
+          const c1 = createCustomerFromTemplate(CUSTOMERS.find(x => x.id === 'zaojie'), true);
+          c1.chairId = chair1.id;
+          c1.position = { x: chair1.x, y: chair1.y };
+          c1.phase = 'goingToChair';
+          c1.timer = 3200;
+          state.customers.push(c1);
+
+          const c2 = createCustomerFromTemplate(CUSTOMERS.find(x => x.id === 'dounai'), true);
+          c2.chairId = chair2.id;
+          c2.position = { x: chair2.x, y: chair2.y };
+          c2.phase = 'goingToChair';
+          c2.timer = 3200;
+          state.customers.push(c2);
+
+          state.seenCustomers.push('zaojie');
+          state.seenCustomers.push('dounai');
+          break;
+        }
+      }
+    }
+  }
+
+
+
   if (state.isMafia) {
     // 极道线只允许刷普通特殊客人（比如蓝毛贝斯手）
     const repFactor = Math.max(0, Math.min(2, state.reputation / 50));
@@ -534,3 +576,166 @@ window.receiveBigHandMoney = function() {
   state.cash += 5000;
   renderStatus();
 };
+
+// ============================================================
+//   特殊客人：枣姐与豆乃（聊天框模式）
+// ============================================================
+
+function startZaojieEvent() {
+  state.customers.forEach(cust => {
+    if (cust.id === 'zaojie' || cust.id === 'dounai') cust.talked = true;
+  });
+
+  showModal(`
+    <div class="chat-container" style="display:flex; flex-direction:column; gap:12px; padding:12px; background:#f5f5f5; border:2px solid #ddd; border-radius:12px; margin-bottom:12px; max-height:400px; overflow-y:auto;">
+      
+      <!-- 枣姐 (左) -->
+      <div style="display:flex; align-items:flex-start; gap:10px; max-width:90%;">
+        <img src="assets/customers/zaojie.png" onerror="this.src='assets/customers/worker.png'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.15); background:#eee; flex-shrink:0;">
+        <div style="display:flex; flex-direction:column; align-items:flex-start;">
+          <span style="font-size:11px; color:#888; margin-bottom:2px; margin-left:4px;">枣姐</span>
+          <div style="background:#fff; border:1px solid #ddd; padding:10px 14px; border-radius:2px 14px 14px 14px; font-size:14px; color:#333; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+            老板再开两瓶魔爪！
+          </div>
+        </div>
+      </div>
+
+      <!-- 蕾叶 (右) -->
+      <div style="display:flex; flex-direction:row-reverse; align-items:flex-start; gap:10px; max-width:90%; align-self:flex-end;">
+        <img src="assets/chars/leye.png" onerror="this.src='assets/chars/worker.png'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.15); background:#eee; flex-shrink:0;">
+        <div style="display:flex; flex-direction:column; align-items:flex-end;">
+          <span style="font-size:11px; color:#888; margin-bottom:2px; margin-right:4px;">蕾叶</span>
+          <div style="background:#e8f5e9; border:1px solid #c8e6c9; padding:10px 14px; border-radius:14px 2px 14px 14px; font-size:14px; color:#333; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+            好嘞来了！
+          </div>
+        </div>
+      </div>
+      
+    </div>
+    <button class="dialogue-choice" onclick="zaojie_step2()">继续</button>
+  `);
+  document.getElementById('modal-btn').style.display = 'none';
+}
+
+function zaojie_step2() {
+  showModal(`
+    <div class="chat-container" style="display:flex; flex-direction:column; gap:12px; padding:12px; background:#f5f5f5; border:2px solid #ddd; border-radius:12px; margin-bottom:12px; max-height:400px; overflow-y:auto;">
+      
+      <!-- 枣姐 (左) -->
+      <div style="display:flex; align-items:flex-start; gap:10px; max-width:90%;">
+        <img src="assets/customers/zaojie.png" onerror="this.src='assets/customers/worker.png'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.15); background:#eee; flex-shrink:0;">
+        <div style="display:flex; flex-direction:column; align-items:flex-start;">
+          <span style="font-size:11px; color:#888; margin-bottom:2px; margin-left:4px;">枣姐</span>
+          <div style="background:#fff; border:1px solid #ddd; padding:10px 14px; border-radius:2px 14px 14px 14px; font-size:14px; color:#333; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+            唉，作曲没了这个果然还是不行啊。
+          </div>
+        </div>
+      </div>
+
+      <!-- 豆乃 (右) -->
+      <div style="display:flex; flex-direction:row-reverse; align-items:flex-start; gap:10px; max-width:90%; align-self:flex-end;">
+        <img src="assets/customers/dounai.png" onerror="this.src='assets/customers/student.png'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.15); background:#eee; flex-shrink:0;">
+        <div style="display:flex; flex-direction:column; align-items:flex-end;">
+          <span style="font-size:11px; color:#888; margin-bottom:2px; margin-right:4px;">豆乃</span>
+          <div style="background:#e3f2fd; border:1px solid #90caf9; padding:10px 14px; border-radius:14px 2px 14px 14px; font-size:14px; color:#333; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+            能量饮料不就是拿来充能的吗？
+          </div>
+        </div>
+      </div>
+
+      <!-- 枣姐 (左) -->
+      <div style="display:flex; align-items:flex-start; gap:10px; max-width:90%;">
+        <img src="assets/customers/zaojie.png" onerror="this.src='assets/customers/worker.png'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.15); background:#eee; flex-shrink:0;">
+        <div style="display:flex; flex-direction:column; align-items:flex-start;">
+          <span style="font-size:11px; color:#888; margin-bottom:2px; margin-left:4px;">枣姐</span>
+          <div style="background:#fff; border:1px solid #ddd; padding:10px 14px; border-radius:2px 14px 14px 14px; font-size:14px; color:#333; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+            每次作曲，饮料罐子和纸都要丢一地。
+          </div>
+        </div>
+      </div>
+
+      <!-- 豆乃 (右) -->
+      <div style="display:flex; flex-direction:row-reverse; align-items:flex-start; gap:10px; max-width:90%; align-self:flex-end;">
+        <img src="assets/customers/dounai.png" onerror="this.src='assets/customers/student.png'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.15); background:#eee; flex-shrink:0;">
+        <div style="display:flex; flex-direction:column; align-items:flex-end;">
+          <span style="font-size:11px; color:#888; margin-bottom:2px; margin-right:4px;">豆乃</span>
+          <div style="background:#e3f2fd; border:1px solid #90caf9; padding:10px 14px; border-radius:14px 2px 14px 14px; font-size:14px; color:#333; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+            纸是做什么的？用电脑写曲子方便快捷。
+          </div>
+        </div>
+      </div>
+      
+    </div>
+    <button class="dialogue-choice" onclick="zaojie_step3()">继续</button>
+  `);
+  document.getElementById('modal-btn').style.display = 'none';
+}
+
+function zaojie_step3() {
+  showModal(`
+    <div class="chat-container" style="display:flex; flex-direction:column; gap:12px; padding:12px; background:#f5f5f5; border:2px solid #ddd; border-radius:12px; margin-bottom:12px; max-height:400px; overflow-y:auto;">
+      
+      <!-- 枣姐 (左) -->
+      <div style="display:flex; align-items:flex-start; gap:10px; max-width:90%;">
+        <img src="assets/customers/zaojie.png" onerror="this.src='assets/customers/worker.png'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.15); background:#eee; flex-shrink:0;">
+        <div style="display:flex; flex-direction:column; align-items:flex-start;">
+          <span style="font-size:11px; color:#888; margin-bottom:2px; margin-left:4px;">枣姐</span>
+          <div style="background:#fff; border:1px solid #ddd; padding:10px 14px; border-radius:2px 14px 14px 14px; font-size:14px; color:#333; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+            作曲就是要用纸笔才有灵魂。
+          </div>
+        </div>
+      </div>
+
+    </div>
+    
+    <div style="text-align:center; color:#888; font-size:13px; margin:10px 0; line-height:1.6; background:#fff; padding:10px; border-radius:8px;">
+      （两人突然不说话了……）<br>
+      <span style="color:#aaa;">枣姐：（电脑作曲，好没格调…）</span><br>
+      <span style="color:#aaa;">豆乃：（嘉豪…）</span>
+    </div>
+
+    <button class="dialogue-choice" onclick="pickZaojieChoice('A')">学到了！</button>
+    <button class="dialogue-choice" onclick="pickZaojieChoice('B')">喝大了？</button>
+  `);
+  document.getElementById('modal-btn').style.display = 'none';
+}
+
+function pickZaojieChoice(choice) {
+  if (choice === 'A') {
+    closeModal();
+    state.cash -= 100;
+    const kokono = characters.find(c => c.id === 'kokono');
+    if (kokono) kokono.current.affinity = Math.max(0, kokono.current.affinity - 10);
+    
+    if (typeof playCutscene === 'function' && typeof ZAOJIE_SCRIPT !== 'undefined') {
+      playCutscene(ZAOJIE_SCRIPT, () => {
+        renderStatus();
+        renderPage('home');
+        leaveZaojieCustomers();
+      });
+    } else {
+      alert('现金 -100，心玖好感 -10');
+      leaveZaojieCustomers();
+    }
+  } else {
+    closeModal();
+    showModal('<p style="text-align:center;color:#888">你默默走开了，她们继续痛饮能量饮料。</p>');
+    document.getElementById('modal-btn').onclick = () => {
+      closeModal();
+      leaveZaojieCustomers();
+    };
+    document.getElementById('modal-btn').textContent = '关闭';
+  }
+}
+
+function leaveZaojieCustomers() {
+  state.customers.forEach(c => {
+    if (c.id === 'zaojie' || c.id === 'dounai') {
+      c.chairId = null;
+      c.position = { x: CUSTOMER_EXIT.x, y: CUSTOMER_EXIT.y };
+      c.phase = 'leaving';
+      c.timer = 3500;
+    }
+  });
+  renderPage('home');
+}

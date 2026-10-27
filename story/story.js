@@ -179,3 +179,21 @@ const STORY = {
     { text: '——结局：成功夺回 Live House' },
   ],
 };
+
+const ZAOJIE_SCRIPT = {
+  id: 'zaojie_script',
+  lines: [
+    { bg: 'assets/bg/restaurant.png', portrait: null, text: '【餐馆内】' },
+    { portrait: 'leye', portraitSide: 'center', who: '蕾叶', say: '学到了！原来作曲要喝能量饮料啊！' },
+    { portrait: 'ningetsu', portraitSide: 'center', who: '宁月', say: '原来如此……（记笔记）能量饮料…可以…帮助作曲……' },
+    { portrait: 'chisato', portraitSide: 'center', who: '千樱梨', say: '那我们给心玖也准备一点吧！千樱梨联盟头号人物必须赞助手下一箱！' },
+    
+    { bg: 'assets/bg/home.png', text: '晚上，心玖收到了大家的心意……' },
+    { portrait: 'kokono', portraitSide: 'center', who: '心玖', say: '这是干嘛？' },
+    { portrait: 'leye', portraitSide: 'center', who: '蕾叶', say: '我今天在餐馆听到了哦，作曲原来要大量消耗能量饮料啊！' },
+    { text: '心玖看着满桌的魔爪，嘴角抽搐了一下。' },
+    { portrait: 'kokono', portraitSide: 'center', who: '心玖', say: '（我也要OD吗……）' },
+    { portrait: 'kokono', portraitSide: 'center', who: '心玖', say: '不是说好了要攒钱吗？又带头乱花钱买这些东西……' },
+    { bg: '', text: '【现金 -100，心玖好感 -10】' }
+  ]
+};
